@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { PetInstance } from './engine'
 import { createPet } from './engine'
 import { createEyesBehavior, createBlinkBehavior, createClickBehavior } from './engine/behaviors'
+import ExportModal from './ExportModal'
+import StandalonePet from './StandalonePet'
 
 /* -------------------------------------------------------- */
 /*  Toggle switch component                                 */
@@ -57,6 +59,12 @@ const ALL_ACTIVE: BehaviorState = { eyes: true, blink: true, click: true }
 /*  App — Builder                                           */
 /* -------------------------------------------------------- */
 
+function isStandaloneRoute(): boolean {
+  const params = new URLSearchParams(window.location.search)
+  if (params.has('pet')) return true
+  return /^\/p\//.test(window.location.pathname)
+}
+
 function App() {
   const containerRef = useRef<HTMLDivElement>(null)
   const petRef = useRef<PetInstance | null>(null)
@@ -65,6 +73,13 @@ function App() {
   const [color, setColor] = useState('#ff6b6b')
   const [size, setSize] = useState(120)
   const [eyeSpeed, setEyeSpeed] = useState(0.15)
+  const [showExport, setShowExport] = useState(false)
+
+  /* ---- Route: standalone pet page ---- */
+
+  if (isStandaloneRoute()) {
+    return <StandalonePet />
+  }
 
   /* ---- Spawn / re-spawn the pet whenever controls change ---- */
 
@@ -265,16 +280,28 @@ function App() {
               </div>
             </section>
 
-            {/* Generate Code placeholder (ticket #7) */}
+            {/* Generate Code */}
             <button
-              disabled
-              className="w-full py-3 px-4 rounded-xl bg-white/5 text-white/30 border border-white/10 font-medium text-sm cursor-not-allowed transition-colors"
+              onClick={() => setShowExport(true)}
+              className="w-full py-3 px-4 rounded-xl bg-purple-600 text-white font-medium text-sm hover:bg-purple-500 transition-colors shadow-lg shadow-purple-500/20 cursor-pointer"
             >
-              📋 Generate Code &rarr; (ticket #7)
+              📋 Generate Code &rarr;
             </button>
           </div>
         </div>
       </div>
+
+      {/* Export Modal */}
+      {showExport && (
+        <ExportModal
+          behaviors={Object.entries(behaviors)
+            .filter(([, v]) => v)
+            .map(([k]) => k)}
+          color={color}
+          size={size}
+          onClose={() => setShowExport(false)}
+        />
+      )}
     </div>
   )
 }
