@@ -357,6 +357,12 @@ export interface CharacterRenderState {
   squashY: number
   /** Time in seconds for animation effects. */
   time: number
+  /** Position offset x from center (pixels). */
+  offsetX: number
+  /** Position offset y from center (pixels). */
+  offsetY: number
+  /** Rotation angle (degrees). */
+  rotation: number
 }
 
 let _state: CharacterRenderState = {
@@ -364,6 +370,9 @@ let _state: CharacterRenderState = {
   squashX: 1,
   squashY: 1,
   time: 0,
+  offsetX: 0,
+  offsetY: 0,
+  rotation: 0,
 }
 
 export function getCharacterRenderState(): CharacterRenderState {
@@ -373,6 +382,12 @@ export function getCharacterRenderState(): CharacterRenderState {
 export function setCharacterSquash(x: number, y: number): void {
   _state.squashX = x
   _state.squashY = y
+}
+
+export function setCharacterTransform(ox: number, oy: number, rot: number): void {
+  _state.offsetX = ox
+  _state.offsetY = oy
+  _state.rotation = rot
 }
 
 export function updateCharacterTime(delta: number): void {

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import type { CharacterId, Emotion, PetInstance } from './engine'
+import type { CharacterId, Emotion, LocomotionMode, PetInstance } from './engine'
 import { createPet, toggleAudio, isAudioEnabled } from './engine'
 import { CHARACTER_LIST } from './engine'
+import { createLocomotionBehavior } from './engine'
 import { createEyesBehavior, createBlinkBehavior, createClickBehavior } from './engine/behaviors'
 import ExportModal from './ExportModal'
 import StandalonePet from './StandalonePet'
@@ -127,6 +128,10 @@ function App() {
   const [audioEnabled, setAudioEnabled] = useState(isAudioEnabled())
   const [showExport, setShowExport] = useState(false)
 
+  /* ---- Locomotion state ---- */
+  const [mode, setMode] = useState<LocomotionMode>('fly')
+  const [energy, setEnergy] = useState(3)
+
   /* ---- Route: standalone pet page ---- */
 
   if (isStandaloneRoute()) {
@@ -159,6 +164,14 @@ function App() {
       )
     }
 
+    /* Locomotion behavior */
+    behaviorList.push(
+      createLocomotionBehavior({
+        defaultMode: mode,
+        energy,
+      }),
+    )
+
     const pet = createPet({
       id: 'builder',
       color,
@@ -178,7 +191,7 @@ function App() {
       pet.unmount()
       petRef.current = null
     }
-  }, [behaviors, color, size, eyeSpeed, emotion, character])
+  }, [behaviors, color, size, eyeSpeed, emotion, character, mode, energy])
 
   /* ---- Helpers ---- */
 
@@ -283,6 +296,71 @@ function App() {
                     <span className="truncate">{c.emoji} {c.label}</span>
                   </button>
                 ))}
+              </div>
+            </section>
+
+            {/* Movement section */}
+            <section>
+              <h2 className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-3">
+                Movimiento
+              </h2>
+              <div className="space-y-3">
+                {/* Mode toggle */}
+                <div className="bg-white/5 p-0.5 rounded-xl border border-white/10 flex items-center">
+                  <button
+                    onClick={() => setMode('fly')}
+                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      mode === 'fly'
+                        ? 'bg-pink-500/20 text-pink-300 border border-pink-500/40'
+                        : 'text-white/50 hover:text-white/70'
+                    }`}
+                  >
+                    🛸 Float
+                  </button>
+                  <button
+                    onClick={() => setMode('walk')}
+                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      mode === 'walk'
+                        ? 'bg-pink-500/20 text-pink-300 border border-pink-500/40'
+                        : 'text-white/50 hover:text-white/70'
+                    }`}
+                  >
+                    🐾 Walk
+                  </button>
+                </div>
+
+                {/* Energy slider */}
+                <div>
+                  <label className="flex items-center justify-between text-sm text-white/70 mb-1.5">
+                    <span>Energía</span>
+                    <span className="font-mono text-pink-400 text-xs">
+                      {energy === 0 ? '0 (Calm)' : energy <= 3 ? `${energy} (Low)` : energy <= 7 ? `${energy} (Hyper)` : `${energy} (MAX ⚡)`}
+                    </span>
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={10}
+                    value={energy}
+                    onChange={(e) => setEnergy(Number(e.target.value))}
+                    className="w-full h-1.5 rounded-full appearance-none cursor-pointer
+                      bg-white/10 accent-pink-500
+                      [&::-webkit-slider-thumb]:appearance-none
+                      [&::-webkit-slider-thumb]:w-4
+                      [&::-webkit-slider-thumb]:h-4
+                      [&::-webkit-slider-thumb]:rounded-full
+                      [&::-webkit-slider-thumb]:bg-pink-500
+                      [&::-webkit-slider-thumb]:shadow-lg
+                      [&::-webkit-slider-thumb]:cursor-pointer
+                      [&::-moz-range-thumb]:w-4
+                      [&::-moz-range-thumb]:h-4
+                      [&::-moz-range-thumb]:rounded-full
+                      [&::-moz-range-thumb]:bg-pink-500
+                      [&::-moz-range-thumb]:border-0
+                      [&::-moz-range-thumb]:shadow-lg
+                      [&::-moz-range-thumb]:cursor-pointer"
+                  />
+                </div>
               </div>
             </section>
 

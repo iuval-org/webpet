@@ -31,5 +31,8 @@ export { setCharacter, getCharacter, getCharacterDef } from './character.ts'
 
 export { setAudioEnabled, toggleAudio, isAudioEnabled, playBlink, playPoke } from './audio.ts'
 
+export { createLocomotionBehavior } from './locomotion.ts'
+export type { LocomotionMode, LocomotionConfig, LocomotionAPI, MovementState, TrickToggles } from './locomotion.ts'
+
 /** Built-in behaviors (eyes, blink, ...). */
 export * as behaviors from './behaviors/index.ts'

@@ -25,6 +25,7 @@ import {
   getCharacterDef,
   setCharacter,
   getCharacter,
+  getCharacterRenderState,
   type CharacterId,
 } from './character.ts'
 import { playBlink, playPoke, playAngry, playSad } from './audio.ts'
@@ -199,13 +200,22 @@ export function createEmotionBehavior(config?: Partial<EmotionConfig>): Behavior
 
       time += delta / 1000
       const charDef = getCharacterDef()
+      const renderState = getCharacterRenderState()
 
       /* ---- Clear canvas (we own clearing) ---- */
       r.clear()
 
+      /* ---- Apply character transforms (movement, rotation, squash) ---- */
+      const ctx = r.ctx
+      ctx.save()
+      ctx.translate(size / 2 + renderState.offsetX, size / 2 + renderState.offsetY)
+      ctx.rotate((renderState.rotation * Math.PI) / 180)
+      ctx.scale(renderState.squashX, renderState.squashY)
+      ctx.translate(-size / 2, -size / 2)
+
       /* ---- Draw character body ---- */
-      drawBody(r.ctx, size, charDef)
-      drawAccessories(r.ctx, size, charDef)
+      drawBody(ctx, size, charDef)
+      drawAccessories(ctx, size, charDef)
 
       /* ---- Smooth transition toward target ---- */
 
@@ -248,24 +258,27 @@ export function createEmotionBehavior(config?: Partial<EmotionConfig>): Behavior
 
       /* ---- Draw eyebrows ---- */
       const browAngle = _draw.eyeAngle
-      drawEyebrows(r.ctx, size, browAngle, '#222')
+      drawEyebrows(ctx, size, browAngle, '#222')
 
       /* ---- Draw eyelids (blink + sleepy) ---- */
       const blinkAmount = _blinkProgress > 0
         ? (_blinkProgress < 0.5 ? _blinkProgress * 2 : (1 - _blinkProgress) * 2)
         : 0
       const eyeCover = Math.max(blinkAmount, 1 - (_draw.eyeOpenness * 2))
-      drawEyelids(r.ctx, size, eyeCover, charDef.eyelidColor)
+      drawEyelids(ctx, size, eyeCover, charDef.eyelidColor)
 
       /* ---- Draw mouth ---- */
       drawMouth(
-        r.ctx, size,
+        ctx, size,
         _draw.mouthCurvature,
         _draw.mouthOpenness,
         _draw.trembling,
         color,
         time,
       )
+
+      /* ---- Restore canvas transforms ---- */
+      ctx.restore()
     },
   }
 }
