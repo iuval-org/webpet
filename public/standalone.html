@@ -1,0 +1,1732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mascot Overlay - Classic Web Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fredoka:wght@400;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mascot: ['Fredoka', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        /* Mascot HUD Control Dock */
+        .hud-dock {
+            background: rgba(15, 23, 42, 0.94);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-top: 2px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .hud-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            transition: all 0.15s ease;
+        }
+
+        .hud-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-1px);
+        }
+
+        /* Custom Range Input */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.15);
+            height: 6px;
+            border-radius: 3px;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #ec4899;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(236, 72, 153, 0.8);
+            transition: transform 0.15s ease;
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.25);
+            background: #f472b6;
+        }
+
+        .pupil-smooth {
+            transition: transform 0.04s ease-out;
+        }
+
+        /* Mascot layer non-blocking pointer events */
+        #mascot-stage {
+            pointer-events: none;
+        }
+
+        #mascot-container {
+            pointer-events: auto;
+            cursor: pointer;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-left: -128px;
+            margin-top: -128px;
+            will-change: transform;
+            transform-origin: center 85%;
+        }
+
+        /* Highlight surfaces when pet is walking */
+        .dash-surface {
+            transition: border-color 0.3s ease;
+        }
+        
+        .dash-surface.surface-active {
+            border-color: rgba(236, 72, 153, 0.5) !important;
+            box-shadow: 0 0 15px rgba(236, 72, 153, 0.15);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-950 text-slate-100 antialiased relative pb-72">
+
+    <!-- CLASSIC TOP NAVBAR (Surface) -->
+    <header id="dash-header" class="dash-surface w-full bg-slate-900 border-b border-slate-800 px-6 py-3 flex items-center justify-between z-10">
+        <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-2 text-indigo-400 font-bold text-lg">
+                <i class="fa-solid fa-layer-group text-xl"></i>
+                <span class="tracking-tight text-white">AcmeData<span class="text-indigo-400">Hub</span></span>
+            </div>
+            <span class="text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2.5 py-0.5 rounded-full font-mono">v2.4.0 Live</span>
+        </div>
+
+        <div class="flex items-center space-x-6 text-sm">
+            <div class="relative hidden sm:block">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+                <input type="text" placeholder="Search analytics or logs..." class="bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-4 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 w-64">
+            </div>
+            <div class="flex items-center space-x-3 text-slate-400">
+                <button class="hover:text-white"><i class="fa-regular fa-bell"></i></button>
+                <button class="hover:text-white"><i class="fa-regular fa-envelope"></i></button>
+                <div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-inner">
+                    AD
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN APPLICATION CONTAINER (Sidebar + HTML Table) -->
+    <div class="flex flex-1 w-full relative">
+        
+        <!-- CLASSIC SIDEBAR (Surface) -->
+        <aside id="dash-sidebar" class="dash-surface w-60 bg-slate-900/60 border-r border-slate-800 p-4 hidden md:flex flex-col justify-between shrink-0">
+            <div class="space-y-6">
+                <div>
+                    <div class="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold mb-3 px-2">Main Menu</div>
+                    <nav class="space-y-1">
+                        <a href="#" class="flex items-center space-x-3 px-3 py-2 bg-indigo-600/10 text-indigo-400 border border-indigo-500/20 rounded-lg text-xs font-semibold">
+                            <i class="fa-solid fa-chart-pie w-4 text-center"></i>
+                            <span>Overview & Stats</span>
+                        </a>
+                        <a href="#" class="flex items-center space-x-3 px-3 py-2 text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 rounded-lg text-xs font-medium transition-colors">
+                            <i class="fa-solid fa-users w-4 text-center"></i>
+                            <span>User Accounts</span>
+                        </a>
+                        <a href="#" class="flex items-center space-x-3 px-3 py-2 text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 rounded-lg text-xs font-medium transition-colors">
+                            <i class="fa-solid fa-server w-4 text-center"></i>
+                            <span>Cluster Nodes</span>
+                        </a>
+                        <a href="#" class="flex items-center space-x-3 px-3 py-2 text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 rounded-lg text-xs font-medium transition-colors">
+                            <i class="fa-solid fa-credit-card w-4 text-center"></i>
+                            <span>Subscriptions</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div>
+                    <div class="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold mb-3 px-2">System</div>
+                    <nav class="space-y-1">
+                        <a href="#" class="flex items-center space-x-3 px-3 py-2 text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 rounded-lg text-xs font-medium transition-colors">
+                            <i class="fa-solid fa-gear w-4 text-center"></i>
+                            <span>Settings</span>
+                        </a>
+                        <a href="#" class="flex items-center space-x-3 px-3 py-2 text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 rounded-lg text-xs font-medium transition-colors">
+                            <i class="fa-solid fa-shield-halved w-4 text-center"></i>
+                            <span>Security Logs</span>
+                        </a>
+                    </nav>
+                </div>
+            </div>
+
+            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-400 space-y-1">
+                <div class="font-bold text-slate-200">System Status</div>
+                <div class="flex items-center space-x-2 text-[11px] text-emerald-400">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>All services operational</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN DASHBOARD CONTENT AREA -->
+        <main class="flex-1 p-6 space-y-6 max-w-7xl mx-auto w-full relative">
+            
+            <!-- STATS WIDGET CARDS (Surfaces) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="dash-surface bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-2">
+                    <div class="text-xs text-slate-400 font-medium">Total API Requests</div>
+                    <div class="text-2xl font-extrabold text-white">2,845,190</div>
+                    <div class="text-xs text-emerald-400 flex items-center space-x-1">
+                        <i class="fa-solid fa-arrow-trend-up"></i>
+                        <span>+14.2% from last week</span>
+                    </div>
+                </div>
+
+                <div class="dash-surface bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-2">
+                    <div class="text-xs text-slate-400 font-medium font-sans">Active Sessions</div>
+                    <div class="text-2xl font-extrabold text-white">18,420</div>
+                    <div class="text-xs text-emerald-400 flex items-center space-x-1">
+                        <i class="fa-solid fa-arrow-trend-up"></i>
+                        <span>+8.6% live active</span>
+                    </div>
+                </div>
+
+                <div class="dash-surface bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-2">
+                    <div class="text-xs text-slate-400 font-medium">Avg Response Latency</div>
+                    <div class="text-2xl font-extrabold text-white">34.8 ms</div>
+                    <div class="text-xs text-emerald-400 flex items-center space-x-1">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>Optimal range</span>
+                    </div>
+                </div>
+
+                <div class="dash-surface bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-2">
+                    <div class="text-xs text-slate-400 font-medium">Monthly Revenue</div>
+                    <div class="text-2xl font-extrabold text-white">$94,120.00</div>
+                    <div class="text-xs text-indigo-400 flex items-center space-x-1">
+                        <i class="fa-solid fa-wallet"></i>
+                        <span>98.4% target met</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CLASSIC REALISTIC HTML DATA TABLE (Surface) -->
+            <div id="dash-table" class="dash-surface bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+                <div class="p-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Active System Accounts</h2>
+                        <p class="text-xs text-slate-400">Manage verified team members, permissions, and node usage.</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold border border-slate-700 transition-colors">Export CSV</button>
+                        <button class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold shadow-md transition-colors">+ Add Account</button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead class="bg-slate-950/80 text-slate-400 border-b border-slate-800 font-mono uppercase tracking-wider">
+                            <tr>
+                                <th class="p-3.5 pl-4">User ID</th>
+                                <th class="p-3.5">Name & Email</th>
+                                <th class="p-3.5">Access Role</th>
+                                <th class="p-3.5">Status</th>
+                                <th class="p-3.5">Monthly Usage</th>
+                                <th class="p-3.5 text-right pr-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800/80 text-slate-300 font-medium">
+                            <tr class="hover:bg-slate-800/40 transition-colors">
+                                <td class="p-3.5 pl-4 font-mono text-slate-400">#USR-8901</td>
+                                <td class="p-3.5 flex items-center space-x-3">
+                                    <div class="w-7 h-7 rounded-full bg-pink-500/20 text-pink-400 font-bold flex items-center justify-center text-[10px]">EC</div>
+                                    <div>
+                                        <div class="font-bold text-white">Elena Rostova</div>
+                                        <div class="text-[11px] text-slate-400">elena.r@acme.io</div>
+                                    </div>
+                                </td>
+                                <td class="p-3.5">
+                                    <span class="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded-md font-mono text-[11px]">DevOps Admin</span>
+                                </td>
+                                <td class="p-3.5">
+                                    <span class="inline-flex items-center space-x-1.5 text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 text-[11px]">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                        <span>Active</span>
+                                    </span>
+                                </td>
+                                <td class="p-3.5">142.8 GB</td>
+                                <td class="p-3.5 text-right pr-4 space-x-2">
+                                    <button class="text-slate-400 hover:text-white"><i class="fa-solid fa-pen"></i></button>
+                                    <button class="text-slate-400 hover:text-rose-400"><i class="fa-solid fa-trash"></i></button>
+                                </td>
+                            </tr>
+
+                            <tr class="hover:bg-slate-800/40 transition-colors">
+                                <td class="p-3.5 pl-4 font-mono text-slate-400">#USR-8902</td>
+                                <td class="p-3.5 flex items-center space-x-3">
+                                    <div class="w-7 h-7 rounded-full bg-cyan-500/20 text-cyan-400 font-bold flex items-center justify-center text-[10px]">MK</div>
+                                    <div>
+                                        <div class="font-bold text-white">Marcus Vance</div>
+                                        <div class="text-[11px] text-slate-400">m.vance@acme.io</div>
+                                    </div>
+                                </td>
+                                <td class="p-3.5">
+                                    <span class="bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2 py-0.5 rounded-md font-mono text-[11px]">Data Analyst</span>
+                                </td>
+                                <td class="p-3.5">
+                                    <span class="inline-flex items-center space-x-1.5 text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 text-[11px]">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                        <span>Active</span>
+                                    </span>
+                                </td>
+                                <td class="p-3.5">98.2 GB</td>
+                                <td class="p-3.5 text-right pr-4 space-x-2">
+                                    <button class="text-slate-400 hover:text-white"><i class="fa-solid fa-pen"></i></button>
+                                    <button class="text-slate-400 hover:text-rose-400"><i class="fa-solid fa-trash"></i></button>
+                                </td>
+                            </tr>
+
+                            <tr class="hover:bg-slate-800/40 transition-colors">
+                                <td class="p-3.5 pl-4 font-mono text-slate-400">#USR-8903</td>
+                                <td class="p-3.5 flex items-center space-x-3">
+                                    <div class="w-7 h-7 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-[10px]">SL</div>
+                                    <div>
+                                        <div class="font-bold text-white">Sophia Chen</div>
+                                        <div class="text-[11px] text-slate-400">sophia.c@acme.io</div>
+                                    </div>
+                                </td>
+                                <td class="p-3.5">
+                                    <span class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-md font-mono text-[11px]">Product Mgr</span>
+                                </td>
+                                <td class="p-3.5">
+                                    <span class="inline-flex items-center space-x-1.5 text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 text-[11px]">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                                        <span>Away</span>
+                                    </span>
+                                </td>
+                                <td class="p-3.5">45.0 GB</td>
+                                <td class="p-3.5 text-right pr-4 space-x-2">
+                                    <button class="text-slate-400 hover:text-white"><i class="fa-solid fa-pen"></i></button>
+                                    <button class="text-slate-400 hover:text-rose-400"><i class="fa-solid fa-trash"></i></button>
+                                </td>
+                            </tr>
+
+                            <tr class="hover:bg-slate-800/40 transition-colors">
+                                <td class="p-3.5 pl-4 font-mono text-slate-400">#USR-8904</td>
+                                <td class="p-3.5 flex items-center space-x-3">
+                                    <div class="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-[10px]">JD</div>
+                                    <div>
+                                        <div class="font-bold text-white">James Dupont</div>
+                                        <div class="text-[11px] text-slate-400">j.dupont@acme.io</div>
+                                    </div>
+                                </td>
+                                <td class="p-3.5">
+                                    <span class="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-md font-mono text-[11px]">Backend Lead</span>
+                                </td>
+                                <td class="p-3.5">
+                                    <span class="inline-flex items-center space-x-1.5 text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 text-[11px]">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                        <span>Active</span>
+                                    </span>
+                                </td>
+                                <td class="p-3.5">210.4 GB</td>
+                                <td class="p-3.5 text-right pr-4 space-x-2">
+                                    <button class="text-slate-400 hover:text-white"><i class="fa-solid fa-pen"></i></button>
+                                    <button class="text-slate-400 hover:text-rose-400"><i class="fa-solid fa-trash"></i></button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MASCOT OVERLAY LAYER (Walks and jumps over HTML components) -->
+    <div id="mascot-stage" class="fixed inset-0 z-30 pointer-events-none overflow-hidden">
+        
+        <!-- Status & Mood Badges Floating over Web Dashboard -->
+        <div class="absolute top-16 right-6 flex items-center space-x-3 pointer-events-auto">
+            <div class="flex items-center space-x-2 text-xs font-mono text-slate-300 bg-slate-900/90 px-3.5 py-1.5 rounded-full border border-slate-700 shadow-xl">
+                <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                <span id="status-text" class="font-semibold">Tracking Cursor</span>
+            </div>
+
+            <div id="mood-badge" class="text-xs font-bold px-4 py-1.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/40 shadow-xl">
+                Playful 🥰
+            </div>
+        </div>
+
+        <!-- Particle Overlay Canvas -->
+        <canvas id="particle-canvas" class="absolute inset-0 pointer-events-none z-20"></canvas>
+
+        <!-- CARTOON MASCOT SVG CONTAINER -->
+        <div id="mascot-container" class="transition-transform duration-75 transform-gpu select-none">
+            
+            <svg id="mascot-svg" class="w-64 h-64 md:w-80 md:h-80 filter drop-shadow-[0_15px_25px_rgba(0,0,0,0.7)]" viewBox="0 0 400 400">
+                <defs>
+                    <!-- Mascot Body Gradients -->
+                    <radialGradient id="body-grad" cx="40%" cy="30%" r="70%">
+                        <stop offset="0%" id="body-stop-1" stop-color="#a855f7" />
+                        <stop offset="70%" id="body-stop-2" stop-color="#7e22ce" />
+                        <stop offset="100%" id="body-stop-3" stop-color="#581c87" />
+                    </radialGradient>
+
+                    <!-- Iris Gradient -->
+                    <radialGradient id="iris-grad" cx="35%" cy="35%" r="65%">
+                        <stop offset="0%" id="iris-color-1" stop-color="#38bdf8" />
+                        <stop offset="60%" id="iris-color-2" stop-color="#0284c7" />
+                        <stop offset="100%" id="iris-color-3" stop-color="#0369a1" />
+                    </radialGradient>
+
+                    <linearGradient id="eye-shine" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
+                        <stop offset="100%" stop-color="#ffffff" stop-opacity="0.1" />
+                    </linearGradient>
+
+                    <clipPath id="eyelid-clip-left">
+                        <ellipse id="eye-shape-left" cx="135" cy="180" rx="45" ry="55" />
+                    </clipPath>
+
+                    <clipPath id="eyelid-clip-right">
+                        <ellipse id="eye-shape-right" cx="265" cy="180" rx="45" ry="55" />
+                    </clipPath>
+                </defs>
+
+                <!-- Mascot Accessories (Cat Ears / Antenna) -->
+                <g id="accessory-group">
+                    <path id="accessory-left" d="M 90,110 Q 50,40 105,75 Z" fill="#7e22ce" stroke="#2e1065" stroke-width="6" />
+                    <path id="accessory-right" d="M 310,110 Q 350,40 295,75 Z" fill="#7e22ce" stroke="#2e1065" stroke-width="6" />
+                    <path id="antenna-stem" d="M 200,100 L 200,50" stroke="#2e1065" stroke-width="8" stroke-linecap="round" class="hidden" />
+                    <circle id="antenna-orb" cx="200" cy="42" r="16" fill="#facc15" stroke="#2e1065" stroke-width="5" class="hidden" />
+                </g>
+
+                <!-- Main Mascot Blob Body -->
+                <path id="mascot-body" d="M 200,60 C 290,60 350,110 350,210 C 350,310 290,340 200,340 C 110,340 50,310 50,210 C 50,110 110,60 200,60 Z" fill="url(#body-grad)" stroke="#2e1065" stroke-width="8" />
+
+                <!-- Eyebrows -->
+                <path id="eyebrow-left" d="M 100,115 Q 135,95 170,115" fill="none" stroke="#2e1065" stroke-width="7" stroke-linecap="round" />
+                <path id="eyebrow-right" d="M 230,115 Q 265,95 300,115" fill="none" stroke="#2e1065" stroke-width="7" stroke-linecap="round" />
+
+                <!-- LEFT EYE ASSEMBLY -->
+                <g id="full-eye-left">
+                    <ellipse cx="135" cy="180" rx="45" ry="55" fill="#ffffff" stroke="#2e1065" stroke-width="7" />
+                    <g clip-path="url(#eyelid-clip-left)">
+                        <g id="iris-group-left" class="pupil-smooth">
+                            <circle id="iris-left" cx="135" cy="180" r="28" fill="url(#iris-grad)" stroke="#0284c7" stroke-width="2" />
+                            <circle id="pupil-left" cx="135" cy="180" r="16" fill="#0f172a" />
+                            <path id="heart-pupil-left" d="M 135,188 C 120,172 110,180 120,190 L 135,202 L 150,190 C 160,180 150,172 135,188 Z" fill="#f43f5e" class="hidden" transform="translate(0, -10)" />
+                            <g id="dizzy-pupil-left" class="hidden">
+                                <path d="M 135,180 m -12,0 a 12,12 0 1,0 24,0 a 12,12 0 1,0 -24,0 M 135,180 m -6,0 a 6,6 0 1,0 12,0" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round" />
+                            </g>
+                            <circle id="shine-main-left" cx="125" cy="168" r="8" fill="#ffffff" />
+                            <circle id="shine-sub-left" cx="145" cy="192" r="4" fill="#ffffff" />
+                        </g>
+                        <path id="eyelid-top-left" d="M 80,110 L 190,110 L 190,120 L 80,120 Z" fill="#7e22ce" />
+                        <path id="eyelid-bottom-left" d="M 80,250 L 190,250 L 190,240 L 80,240 Z" fill="#7e22ce" />
+                    </g>
+                    <path id="eyelash-left" d="M 90,180 Q 135,125 180,180" fill="none" stroke="#2e1065" stroke-width="5" stroke-linecap="round" opacity="0.3" />
+                </g>
+
+                <!-- RIGHT EYE ASSEMBLY -->
+                <g id="full-eye-right">
+                    <ellipse cx="265" cy="180" rx="45" ry="55" fill="#ffffff" stroke="#2e1065" stroke-width="7" />
+                    <g clip-path="url(#eyelid-clip-right)">
+                        <g id="iris-group-right" class="pupil-smooth">
+                            <circle id="iris-right" cx="265" cy="180" r="28" fill="url(#iris-grad)" stroke="#0284c7" stroke-width="2" />
+                            <circle id="pupil-right" cx="265" cy="180" r="16" fill="#0f172a" />
+                            <path id="heart-pupil-right" d="M 265,188 C 250,172 240,180 250,190 L 265,202 L 280,190 C 290,180 280,172 265,188 Z" fill="#f43f5e" class="hidden" transform="translate(0, -10)" />
+                            <g id="dizzy-pupil-right" class="hidden">
+                                <path d="M 265,180 m -12,0 a 12,12 0 1,0 24,0 a 12,12 0 1,0 -24,0 M 265,180 m -6,0 a 6,6 0 1,0 12,0" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round" />
+                            </g>
+                            <circle id="shine-main-right" cx="255" cy="168" r="8" fill="#ffffff" />
+                            <circle id="shine-sub-right" cx="275" cy="192" r="4" fill="#ffffff" />
+                        </g>
+                        <path id="eyelid-top-right" d="M 210,110 L 320,110 L 320,120 L 210,120 Z" fill="#7e22ce" />
+                        <path id="eyelid-bottom-right" d="M 210,250 L 320,250 L 320,240 L 210,240 Z" fill="#7e22ce" />
+                    </g>
+                    <path id="eyelash-right" d="M 220,180 Q 265,125 310,180" fill="none" stroke="#2e1065" stroke-width="5" stroke-linecap="round" opacity="0.3" />
+                </g>
+
+                <!-- EXPRESSION OVERLAYS -->
+                <g id="expression-overlays">
+                    <g id="overlay-sunglasses" class="hidden">
+                        <path d="M 80,160 L 190,165 L 180,210 Q 135,225 90,205 Z" fill="#0f172a" stroke="#ffffff" stroke-width="4" />
+                        <path d="M 210,165 L 320,160 L 310,205 Q 265,225 220,210 Z" fill="#0f172a" stroke="#ffffff" stroke-width="4" />
+                        <path d="M 185,170 Q 200,165 215,170" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" />
+                        <path d="M 95,170 L 130,195 M 225,170 L 260,195" stroke="rgba(255,255,255,0.4)" stroke-width="3" stroke-linecap="round" />
+                    </g>
+
+                    <path id="overlay-tear" d="M 100,225 C 90,240 90,250 100,255 C 110,250 110,240 100,225 Z" fill="#38bdf8" opacity="0.85" class="hidden" />
+
+                    <g id="overlay-angry-pop" class="hidden" transform="translate(290, 85) scale(0.9)">
+                        <path d="M -15,-5 Q 0,-5 0,-20 Q 0,-5 15,-5 Q 0,-5 0,10 Q 0,-5 -15,-5 Z" fill="#f43f5e" stroke="#2e1065" stroke-width="3" />
+                        <path d="M -5,-15 Q -5,0 -20,0 Q -5,0 -5,15 Q -5,0 10,0 Q -5,0 -5,-15 Z" fill="#f43f5e" stroke="#2e1065" stroke-width="3" />
+                    </g>
+
+                    <g id="overlay-zzz" class="hidden" transform="translate(285, 80)">
+                        <text x="0" y="0" font-family="Fredoka" font-size="28" font-weight="bold" fill="#38bdf8" stroke="#0f172a" stroke-width="2">Z</text>
+                        <text x="18" y="-18" font-family="Fredoka" font-size="20" font-weight="bold" fill="#818cf8" stroke="#0f172a" stroke-width="2">z</text>
+                        <text x="32" y="-32" font-family="Fredoka" font-size="14" font-weight="bold" fill="#c084fc" stroke="#0f172a" stroke-width="2">z</text>
+                    </g>
+                </g>
+
+                <!-- ANIMATED MOUTH -->
+                <g id="mouth-group">
+                    <path id="mascot-mouth" d="M 160,255 Q 200,295 240,255" fill="#881337" stroke="#2e1065" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" />
+                    <path id="mascot-tongue" d="M 180,272 Q 200,295 220,272 Z" fill="#fb7185" />
+                </g>
+            </svg>
+        </div>
+    </div>
+
+    <!-- BOTTOM MASCOT CONTROL HUD DOCK -->
+    <footer id="dash-hud" class="dash-surface fixed bottom-0 inset-x-0 z-40 hud-dock p-4">
+        <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <!-- Character Type Selectors -->
+            <div class="space-y-2">
+                <label class="text-xs font-mono font-bold text-pink-400 uppercase tracking-wider flex items-center justify-between">
+                    <span class="flex items-center space-x-2">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <span>Mascot Character Type</span>
+                    </span>
+                    <button id="btn-audio" title="Toggle Sound FX" class="hud-btn px-2.5 py-1 rounded-lg text-slate-300 hover:text-white flex items-center space-x-1">
+                        <i id="audio-icon" class="fa-solid fa-volume-xmark text-xs"></i>
+                        <span class="text-[10px] font-mono">Audio</span>
+                    </button>
+                </label>
+                <div class="grid grid-cols-3 gap-1.5">
+                    <button data-character="gloop" class="preset-btn hud-btn p-2 rounded-xl flex items-center space-x-2 text-xs font-bold border-pink-500/60 bg-pink-500/20">
+                        <span class="w-3.5 h-3.5 rounded-full bg-purple-500 inline-block shadow"></span>
+                        <span>Gloop</span>
+                    </button>
+                    <button data-character="robo" class="preset-btn hud-btn p-2 rounded-xl flex items-center space-x-2 text-xs font-bold">
+                        <span class="w-3.5 h-3.5 rounded-full bg-cyan-400 inline-block shadow"></span>
+                        <span>Robo Bot</span>
+                    </button>
+                    <button data-character="monster" class="preset-btn hud-btn p-2 rounded-xl flex items-center space-x-2 text-xs font-bold">
+                        <span class="w-3.5 h-3.5 rounded-full bg-emerald-400 inline-block shadow"></span>
+                        <span>Goober</span>
+                    </button>
+                    <button data-character="kitty" class="preset-btn hud-btn p-2 rounded-xl flex items-center space-x-2 text-xs font-bold">
+                        <span class="w-3.5 h-3.5 rounded-full bg-amber-400 inline-block shadow"></span>
+                        <span>Neko Kitty</span>
+                    </button>
+                    <button data-character="chick" class="preset-btn hud-btn p-2 rounded-xl flex items-center space-x-2 text-xs font-bold">
+                        <span class="w-3.5 h-3.5 rounded-full bg-yellow-400 inline-block shadow"></span>
+                        <span>Sunny Bird</span>
+                    </button>
+                    <button data-character="alien" class="preset-btn hud-btn p-2 rounded-xl flex items-center space-x-2 text-xs font-bold">
+                        <span class="w-3.5 h-3.5 rounded-full bg-indigo-500 inline-block shadow"></span>
+                        <span>Alien ZORP</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tuning Sliders & Locomotion / Trick Selectors -->
+            <div class="space-y-2">
+                <label class="text-xs font-mono font-bold text-pink-400 uppercase tracking-wider flex items-center justify-between">
+                    <span class="flex items-center space-x-2">
+                        <i class="fa-solid fa-bolt"></i>
+                        <span>Energy, Scale & Surface Locomotion</span>
+                    </span>
+                </label>
+
+                <!-- LOCOMOTION MODE TOGGLE (Fly vs Surface Walk) -->
+                <div class="bg-slate-900/90 p-1 rounded-xl border border-slate-800 flex items-center space-x-1">
+                    <button id="btn-mode-fly" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all bg-pink-500/20 text-pink-300 border border-pink-500/40 flex items-center justify-center space-x-1.5">
+                        <span>🛸 Fly / Float</span>
+                    </button>
+                    <button id="btn-mode-walk" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-slate-200 border border-transparent flex items-center justify-center space-x-1.5">
+                        <span>🐾 Component Walk</span>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 text-xs pt-1">
+                    <div>
+                        <div class="flex justify-between mb-1 font-semibold text-slate-300">
+                            <span>Energy Level</span>
+                            <span id="val-mobility" class="font-mono text-pink-400">0 (Calm)</span>
+                        </div>
+                        <input type="range" id="slider-mobility" min="0" max="10" value="0" class="w-full">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between mb-1 font-semibold text-slate-300">
+                            <span>Pet Scale / Size</span>
+                            <span id="val-pet-scale" class="font-mono text-pink-400">100%</span>
+                        </div>
+                        <input type="range" id="slider-pet-scale" min="50" max="160" value="100" class="w-full">
+                    </div>
+                </div>
+
+                <!-- Trick Selection Checkboxes -->
+                <div class="pt-1">
+                    <span class="text-[10px] font-mono uppercase text-slate-400 block mb-1 font-bold">Select Active Moves & Tricks:</span>
+                    <div class="grid grid-cols-3 gap-1 text-[11px]">
+                        <label class="flex items-center space-x-1.5 p-1 bg-slate-900/80 rounded-lg border border-slate-800 cursor-pointer">
+                            <input type="checkbox" id="toggle-trick-walk" checked class="rounded accent-pink-500">
+                            <span class="text-slate-200">🚶 Walk</span>
+                        </label>
+                        <label class="flex items-center space-x-1.5 p-1 bg-slate-900/80 rounded-lg border border-slate-800 cursor-pointer">
+                            <input type="checkbox" id="toggle-trick-hop" checked class="rounded accent-pink-500">
+                            <span class="text-slate-200">🐰 Hop</span>
+                        </label>
+                        <label class="flex items-center space-x-1.5 p-1 bg-slate-900/80 rounded-lg border border-slate-800 cursor-pointer">
+                            <input type="checkbox" id="toggle-trick-flip" checked class="rounded accent-pink-500">
+                            <span class="text-slate-200">🤸 Flip</span>
+                        </label>
+                        <label class="flex items-center space-x-1.5 p-1 bg-slate-900/80 rounded-lg border border-slate-800 cursor-pointer">
+                            <input type="checkbox" id="toggle-trick-spin" checked class="rounded accent-pink-500">
+                            <span class="text-slate-200">🌀 Spin</span>
+                        </label>
+                        <label class="flex items-center space-x-1.5 p-1 bg-slate-900/80 rounded-lg border border-slate-800 cursor-pointer col-span-2">
+                            <input type="checkbox" id="toggle-trick-highjump" checked class="rounded accent-pink-500">
+                            <span class="text-slate-200">🚀 Mega High Jump</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Expressions Dock -->
+            <div class="space-y-2">
+                <label class="text-xs font-mono font-bold text-pink-400 uppercase tracking-wider flex items-center justify-between">
+                    <span class="flex items-center space-x-2">
+                        <i class="fa-solid fa-face-laugh-squint"></i>
+                        <span>Mascot Expressions</span>
+                    </span>
+                    <div class="flex items-center space-x-1">
+                        <button id="btn-jump-now" class="hud-btn px-2 py-0.5 rounded-md text-[10px] font-mono text-pink-300">
+                            Jump! 🚀
+                        </button>
+                        <button id="btn-blink-now" class="hud-btn px-2 py-0.5 rounded-md text-[10px] font-mono text-pink-300">
+                            Blink!
+                        </button>
+                    </div>
+                </label>
+
+                <div class="grid grid-cols-5 gap-1 pt-1">
+                    <button id="btn-expr-happy" class="hud-btn py-1 px-1 rounded-lg text-slate-200 text-xs font-bold">😄</button>
+                    <button id="btn-expr-shocked" class="hud-btn py-1 px-1 rounded-lg text-slate-200 text-xs font-bold">😲</button>
+                    <button id="btn-expr-silly" class="hud-btn py-1 px-1 rounded-lg text-slate-200 text-xs font-bold">😜</button>
+                    <button id="btn-expr-angry" class="hud-btn py-1 px-1 rounded-lg text-slate-200 text-xs font-bold">😡</button>
+                    <button id="btn-expr-love" class="hud-btn py-1 px-1 rounded-lg text-slate-200 text-xs font-bold">😍</button>
+                    <button id="btn-expr-sad" class="hud-btn py-1 px-1 rounded-lg text-slate-200 text-xs font-bold">🥺</button>
+                    <button id="btn-expr-sleepy" class="hud-btn py-1 px-1 rounded-lg text-slate-200 text-xs font-bold">😴</button>
+                    <button id="btn-expr-cool" class="hud-btn py-1 px-1 rounded-lg text-slate-200 text-xs font-bold">😎</button>
+                    <button id="btn-expr-skeptical" class="hud-btn py-1 px-1 rounded-lg text-slate-200 text-xs font-bold">🤨</button>
+                    <button id="btn-expr-dizzy" class="hud-btn py-1 px-1 rounded-lg text-slate-200 text-xs font-bold">😵</button>
+                </div>
+            </div>
+
+        </div>
+    </footer>
+
+    <script>
+        /* ==========================================================================
+           1. CARTOON AUDIO SYNTHESIZER (Web Audio API)
+           ========================================================================== */
+        class MascotSoundSystem {
+            constructor() {
+                this.ctx = null;
+                this.enabled = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+            }
+
+            playBlinkSound() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(1200, this.ctx.currentTime + 0.06);
+                    gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.06);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.06);
+                } catch (e) {}
+            }
+
+            playPokeSound() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(250, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(700, this.ctx.currentTime + 0.12);
+                    gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.12);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.12);
+                } catch (e) {}
+            }
+
+            playTrickSound() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(1000, this.ctx.currentTime + 0.25);
+                    gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.25);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.25);
+                } catch (e) {}
+            }
+
+            playLandSound() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(60, this.ctx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.1);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.1);
+                } catch (e) {}
+            }
+
+            playLoveSound() {
+                if (!this.enabled || !this.ctx) return;
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+                    setTimeout(() => {
+                        try {
+                            const osc = this.ctx.createOscillator();
+                            const gain = this.ctx.createGain();
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                            gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.25);
+                            osc.connect(gain);
+                            gain.connect(this.ctx.destination);
+                            osc.start();
+                            osc.stop(this.ctx.currentTime + 0.25);
+                        } catch (e) {}
+                    }, idx * 60);
+                });
+            }
+
+            playAngrySound() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(130, this.ctx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(80, this.ctx.currentTime + 0.35);
+                    gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.35);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.35);
+                } catch(e) {}
+            }
+
+            playSadSound() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(500, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(220, this.ctx.currentTime + 0.4);
+                    gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.4);
+                } catch(e) {}
+            }
+
+            playCoolSound() {
+                if (!this.enabled || !this.ctx) return;
+                [330, 415, 493, 659].forEach(freq => {
+                    try {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                        gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.3);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start();
+                        osc.stop(this.ctx.currentTime + 0.3);
+                    } catch(e) {}
+                });
+            }
+        }
+
+        const audioSystem = new MascotSoundSystem();
+
+        const mascotContainer = document.getElementById('mascot-container');
+        const mascotSvg = document.getElementById('mascot-svg');
+        const mouthPath = document.getElementById('mascot-mouth');
+        const tonguePath = document.getElementById('mascot-tongue');
+        
+        const irisGroupLeft = document.getElementById('iris-group-left');
+        const irisGroupRight = document.getElementById('iris-group-right');
+        const pupilLeft = document.getElementById('pupil-left');
+        const pupilRight = document.getElementById('pupil-right');
+
+        const heartPupilLeft = document.getElementById('heart-pupil-left');
+        const heartPupilRight = document.getElementById('heart-pupil-right');
+        const dizzyPupilLeft = document.getElementById('dizzy-pupil-left');
+        const dizzyPupilRight = document.getElementById('dizzy-pupil-right');
+
+        const overlaySunglasses = document.getElementById('overlay-sunglasses');
+        const overlayTear = document.getElementById('overlay-tear');
+        const overlayAngryPop = document.getElementById('overlay-angry-pop');
+        const overlayZzz = document.getElementById('overlay-zzz');
+
+        const eyelidTopLeft = document.getElementById('eyelid-top-left');
+        const eyelidBottomLeft = document.getElementById('eyelid-bottom-left');
+        const eyelidTopRight = document.getElementById('eyelid-top-right');
+        const eyelidBottomRight = document.getElementById('eyelid-bottom-right');
+
+        const eyebrowLeft = document.getElementById('eyebrow-left');
+        const eyebrowRight = document.getElementById('eyebrow-right');
+
+        const accessoryLeft = document.getElementById('accessory-left');
+        const accessoryRight = document.getElementById('accessory-right');
+        const antennaOrb = document.getElementById('antenna-orb');
+        const antennaStem = document.getElementById('antenna-stem');
+
+        const stage = document.getElementById('mascot-stage');
+        const particleCanvas = document.getElementById('particle-canvas');
+        const particleCtx = particleCanvas.getContext('2d');
+
+        // State Container
+        const state = {
+            mouseX: window.innerWidth / 2,
+            mouseY: window.innerHeight / 2,
+            targetMouseX: window.innerWidth / 2,
+            targetMouseY: window.innerHeight / 2,
+            
+            leftPupil: { x: 0, y: 0 },
+            rightPupil: { x: 0, y: 0 },
+            
+            damping: 0.18,
+            isBlinking: false,
+            autoBlink: true,
+            petScale: 1.0,
+            
+            locomotionMode: 'fly', // 'fly' or 'walk'
+            
+            energy: 0, // Energy level 0-10
+            tricks: {
+                walk: true,
+                hop: true,
+                flip: true,
+                spin: true,
+                highjump: true
+            },
+            
+            // Physics & World Pos
+            posX: 0, // Offset from viewport center
+            posY: 0, // Offset from viewport center
+            targetX: 0,
+            targetY: 0,
+            
+            vx: 0, // Horizontal jump velocity
+            vy: 0, // Vertical gravity velocity in Walk mode
+            isGrounded: false,
+            currentSurface: null,
+            walkDir: 1,
+            
+            walkCycle: 0,
+            
+            trickState: null,
+            trickProgress: 0,
+            trickRotation: 0,
+            squashX: 1,
+            squashY: 1,
+            lastTrickTime: Date.now(),
+            
+            lastMouseMoveTime: Date.now(),
+            idleWanderTarget: { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+            
+            currentCharacter: 'gloop',
+            expressionTimer: null
+        };
+
+        let particles = [];
+
+        function calculatePupilOffset(eyeCenterX, eyeCenterY, targetX, targetY) {
+            const dx = targetX - eyeCenterX;
+            const dy = targetY - eyeCenterY;
+
+            const angle = Math.atan2(dy, dx);
+            const distance = Math.hypot(dx, dy);
+
+            const maxPupilTravel = 24; 
+            const constrainedDist = Math.min(distance * 0.10, maxPupilTravel);
+
+            return {
+                x: Math.cos(angle) * constrainedDist,
+                y: Math.sin(angle) * constrainedDist,
+                centerX: eyeCenterX,
+                centerY: eyeCenterY
+            };
+        }
+
+        function resizeCanvases() {
+            particleCanvas.width = window.innerWidth;
+            particleCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvases);
+        resizeCanvases();
+
+        function getSurfacePlatforms() {
+            const surfaces = document.querySelectorAll('.dash-surface');
+            const platforms = [];
+            const mascotRadiusY = 120 * state.petScale;
+            const mascotRadiusX = 100 * state.petScale;
+
+            surfaces.forEach(el => {
+                const rect = el.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    platforms.push({
+                        element: el,
+                        topY: rect.top - mascotRadiusY + 30, // foot contact point
+                        xMin: rect.left - (mascotRadiusX * 0.3),
+                        xMax: rect.right + (mascotRadiusX * 0.3),
+                        rect: rect
+                    });
+                }
+            });
+
+            // Fallback ground floor (HUD top or page bottom)
+            const hud = document.getElementById('dash-hud');
+            const hudTop = hud ? hud.getBoundingClientRect().top : window.innerHeight - 80;
+            platforms.push({
+                element: hud,
+                topY: hudTop - mascotRadiusY + 30,
+                xMin: -window.innerWidth,
+                xMax: window.innerWidth * 2,
+                rect: { top: hudTop, left: 0, right: window.innerWidth, bottom: window.innerHeight }
+            });
+
+            return platforms;
+        }
+
+        function triggerMascotJump(forcedTrick = null) {
+            const activeTricks = [];
+            if (state.tricks.highjump) activeTricks.push('highjump');
+            if (state.tricks.flip) activeTricks.push('flip');
+            if (state.tricks.spin) activeTricks.push('spin');
+            if (state.tricks.hop) activeTricks.push('hop');
+
+            if (activeTricks.length === 0 && !forcedTrick) return;
+
+            const trick = forcedTrick || activeTricks[Math.floor(Math.random() * activeTricks.length)];
+            
+            state.trickState = trick;
+            state.lastTrickTime = Date.now();
+            state.isGrounded = false;
+
+            audioSystem.init();
+            audioSystem.playTrickSound();
+
+            const svgRect = mascotSvg.getBoundingClientRect();
+            createSparkParticles(svgRect.left + svgRect.width / 2, svgRect.bottom - 5);
+
+            state.squashX = 0.75;
+            state.squashY = 1.35;
+
+            // Apply direction & jump physics boost based on trick type
+            if (trick === 'highjump') {
+                state.vy = -14 - (state.energy * 1.1);
+                state.vx = state.walkDir * (1.8 + state.energy * 0.5);
+            } else if (trick === 'flip') {
+                state.vy = -12 - (state.energy * 0.9);
+                state.vx = state.walkDir * (2.8 + state.energy * 0.6);
+            } else if (trick === 'spin') {
+                state.vy = -10 - (state.energy * 0.8);
+                state.vx = state.walkDir * (2.2 + state.energy * 0.5);
+            } else { // hop
+                state.vy = -8.5 - (state.energy * 0.7);
+                state.vx = state.walkDir * (2.0 + state.energy * 0.4);
+            }
+        }
+
+        function updatePetMobility() {
+            const centerX = window.innerWidth / 2;
+            const centerY = window.innerHeight / 2;
+
+            // Highlight surface currently walked on
+            document.querySelectorAll('.dash-surface').forEach(el => el.classList.remove('surface-active'));
+
+            if (state.locomotionMode === 'fly') {
+                // FLY MODE PHYSICS
+                state.vy = 0;
+                state.vx = 0;
+                state.isGrounded = false;
+                state.currentSurface = null;
+
+                if (state.energy === 0) {
+                    state.posX += (0 - state.posX) * 0.1;
+                    state.posY += (0 - state.posY) * 0.1;
+                    state.trickRotation += (0 - state.trickRotation) * 0.1;
+                    state.squashX += (1 - state.squashX) * 0.1;
+                    state.squashY += (1 - state.squashY) * 0.1;
+                    return;
+                }
+
+                const stageWidth = window.innerWidth || 800;
+                const maxOffset = Math.max(100, (stageWidth / 2) - 160);
+
+                const activeTricks = [];
+                if (state.tricks.hop) activeTricks.push('hop');
+                if (state.tricks.flip) activeTricks.push('flip');
+                if (state.tricks.spin) activeTricks.push('spin');
+                if (state.tricks.highjump) activeTricks.push('highjump');
+
+                const now = Date.now();
+                const cooldown = Math.max(700, 3200 - (state.energy * 240));
+
+                if (!state.trickState && activeTricks.length > 0 && (now - state.lastTrickTime > cooldown)) {
+                    if (Math.random() < 0.25 + (state.energy * 0.05)) {
+                        state.lastTrickTime = now;
+                        state.trickProgress = 0;
+                        state.trickState = activeTricks[Math.floor(Math.random() * activeTricks.length)];
+                        audioSystem.playTrickSound();
+                        const svgRect = mascotSvg.getBoundingClientRect();
+                        createSparkParticles(svgRect.left + svgRect.width / 2, svgRect.top + svgRect.height / 2);
+                    }
+                }
+
+                if (state.trickState) {
+                    const speedMult = 0.035 + (state.energy * 0.003);
+                    state.trickProgress += speedMult;
+                    const p = Math.min(1, state.trickProgress);
+
+                    if (state.trickState === 'hop') {
+                        state.posY = -Math.sin(p * Math.PI) * (45 + state.energy * 6);
+                        state.trickRotation = Math.sin(p * Math.PI * 2) * 10;
+                    } else if (state.trickState === 'flip') {
+                        state.posY = -Math.sin(p * Math.PI) * (75 + state.energy * 8);
+                        state.trickRotation = p * 360;
+                    } else if (state.trickState === 'spin') {
+                        state.posY = -Math.sin(p * Math.PI) * (35 + state.energy * 4);
+                        state.trickRotation = p * 720;
+                    } else if (state.trickState === 'highjump') {
+                        state.posY = -Math.sin(p * Math.PI) * (120 + state.energy * 10);
+                        state.trickRotation = Math.sin(p * Math.PI * 2) * 25;
+                        state.squashX = 1 - Math.sin(p * Math.PI) * 0.25;
+                        state.squashY = 1 + Math.sin(p * Math.PI) * 0.35;
+                    }
+
+                    if (p >= 1) {
+                        state.trickState = null;
+                        state.posY = 0;
+                        state.trickRotation = 0;
+                        state.squashX = 1.3;
+                        state.squashY = 0.7;
+                    }
+                } else {
+                    state.squashX += (1 - state.squashX) * 0.15;
+                    state.squashY += (1 - state.squashY) * 0.15;
+
+                    if (state.tricks.walk) {
+                        if (Math.abs(state.posX - state.targetX) < 5 || Math.random() < 0.015) {
+                            state.targetX = (Math.random() - 0.5) * maxOffset * 1.8;
+                        }
+
+                        const dx = state.targetX - state.posX;
+                        const speed = 0.7 + (state.energy * 0.5);
+                        state.posX += Math.sign(dx) * Math.min(Math.abs(dx), speed);
+
+                        if (Math.abs(dx) > 2) {
+                            state.walkCycle += 0.15 + (state.energy * 0.025);
+                            state.posY = Math.abs(Math.sin(state.walkCycle)) * (8 + state.energy);
+                            state.trickRotation = Math.sin(state.walkCycle) * 12;
+                        } else {
+                            state.posY += (0 - state.posY) * 0.15;
+                            state.trickRotation += (0 - state.trickRotation) * 0.15;
+                        }
+                    } else {
+                        state.posY += (0 - state.posY) * 0.15;
+                        state.trickRotation += (0 - state.trickRotation) * 0.15;
+                    }
+                }
+
+            } else {
+                // SURFACE WALK / GRAVITY MODE PHYSICS
+                const worldX = centerX + state.posX;
+                const worldY = centerY + state.posY;
+
+                const platforms = getSurfacePlatforms();
+
+                // Find candidate surface platform right below pet
+                let bestPlatform = null;
+                let minDistAbove = Infinity;
+
+                platforms.forEach(p => {
+                    if (worldX >= p.xMin && worldX <= p.xMax) {
+                        const distAbove = p.topY - worldY;
+                        if (distAbove >= -30 && distAbove < minDistAbove) {
+                            minDistAbove = distAbove;
+                            bestPlatform = p;
+                        }
+                    }
+                });
+
+                if (bestPlatform && bestPlatform.element) {
+                    bestPlatform.element.classList.add('surface-active');
+                }
+
+                if (!state.isGrounded) {
+                    // AIRBORNE JUMP PHYSICS
+                    state.vy += 0.65; // Gravity acceleration
+                    state.posY += state.vy;
+                    state.posX += state.vx; // Horizontal jump drift
+                    state.vx *= 0.98; // Drag
+
+                    // Mid-air trick rotation animations
+                    if (state.trickState === 'flip') {
+                        state.trickRotation += state.walkDir * 18; // Full 360 flip
+                    } else if (state.trickState === 'spin') {
+                        state.trickRotation += state.walkDir * 28; // Spin roll
+                    } else if (state.trickState === 'highjump') {
+                        state.trickRotation = Math.sin(state.vy * 0.1) * 15;
+                        if (state.vy < 0) {
+                            state.squashX = 0.8;
+                            state.squashY = 1.25;
+                        } else {
+                            state.squashX = 1.15;
+                            state.squashY = 0.85;
+                        }
+                    } else { // Hop or drop
+                        state.trickRotation = Math.sin(state.vy * 0.08) * 10;
+                    }
+
+                    // LANDING CHECK (Only land when falling downwards)
+                    if (state.vy >= 0 && bestPlatform && (centerY + state.posY) >= bestPlatform.topY) {
+                        state.posY = bestPlatform.topY - centerY;
+                        state.vy = 0;
+                        state.vx = 0;
+                        state.isGrounded = true;
+                        state.currentSurface = bestPlatform;
+                        state.trickState = null;
+                        state.trickRotation = 0;
+                        state.squashX = 1.4; // Juicy landing impact
+                        state.squashY = 0.6;
+                        audioSystem.playLandSound();
+
+                        const svgRect = mascotSvg.getBoundingClientRect();
+                        createSparkParticles(svgRect.left + svgRect.width / 2, svgRect.bottom - 5);
+                    }
+                } else {
+                    // GROUNDED ON A SURFACE
+                    if (bestPlatform) {
+                        state.posY = bestPlatform.topY - centerY;
+                    } else {
+                        // Off ledge! Fall down!
+                        state.isGrounded = false;
+                        state.vy = 1.0;
+                    }
+
+                    // Walking along component top surface
+                    if (state.energy > 0 && state.tricks.walk && state.isGrounded) {
+                        const speed = 1.2 + (state.energy * 0.7);
+                        state.posX += state.walkDir * speed;
+                        state.walkCycle += 0.18 + (state.energy * 0.03);
+
+                        // Waddle bounce on surface
+                        state.trickRotation = Math.sin(state.walkCycle) * 10;
+                        state.squashY = 1 + Math.abs(Math.sin(state.walkCycle)) * 0.12;
+
+                        // Check edge bounds of current component
+                        if (bestPlatform) {
+                            if (worldX > bestPlatform.xMax - 30) {
+                                state.walkDir = -1;
+                                if (Math.random() < 0.45 && (state.tricks.hop || state.tricks.highjump)) {
+                                    triggerMascotJump();
+                                }
+                            } else if (worldX < bestPlatform.xMin + 30) {
+                                state.walkDir = 1;
+                                if (Math.random() < 0.45 && (state.tricks.hop || state.tricks.highjump)) {
+                                    triggerMascotJump();
+                                }
+                            }
+                        }
+                    } else {
+                        state.trickRotation += (0 - state.trickRotation) * 0.15;
+                    }
+
+                    // Perform autonomous tricks off surface
+                    const now = Date.now();
+                    const cooldown = Math.max(700, 3200 - (state.energy * 250));
+
+                    if (state.energy > 0 && !state.trickState && (now - state.lastTrickTime > cooldown)) {
+                        if (Math.random() < 0.22 + (state.energy * 0.05)) {
+                            triggerMascotJump();
+                        }
+                    }
+                }
+
+                // Smoothly decay squash/stretch
+                state.squashX += (1 - state.squashX) * 0.15;
+                state.squashY += (1 - state.squashY) * 0.15;
+            }
+        }
+
+        function renderLoop() {
+            const now = Date.now();
+            if (now - state.lastMouseMoveTime > 3000) {
+                if (Math.random() < 0.02) {
+                    const radius = Math.min(window.innerWidth, window.innerHeight) * 0.35;
+                    const angle = Math.random() * Math.PI * 2;
+                    state.idleWanderTarget = {
+                        x: window.innerWidth / 2 + Math.cos(angle) * radius,
+                        y: window.innerHeight / 2 + Math.sin(angle) * radius
+                    };
+                }
+                state.targetMouseX += (state.idleWanderTarget.x - state.targetMouseX) * 0.04;
+                state.targetMouseY += (state.idleWanderTarget.y - state.targetMouseY) * 0.04;
+            }
+
+            state.mouseX += (state.targetMouseX - state.mouseX) * state.damping;
+            state.mouseY += (state.targetMouseY - state.mouseY) * state.damping;
+
+            updatePetMobility();
+
+            const svgRect = mascotSvg.getBoundingClientRect();
+            const scale = svgRect.width / 400;
+
+            const leftEyeCenterX = svgRect.left + (135 * scale);
+            const leftEyeCenterY = svgRect.top + (180 * scale);
+            const rightEyeCenterX = svgRect.left + (265 * scale);
+            const rightEyeCenterY = svgRect.top + (180 * scale);
+
+            const leftOffset = calculatePupilOffset(leftEyeCenterX, leftEyeCenterY, state.mouseX, state.mouseY);
+            const rightOffset = calculatePupilOffset(rightEyeCenterX, rightEyeCenterY, state.mouseX, state.mouseY);
+
+            state.leftPupil.x += (leftOffset.x - state.leftPupil.x) * (state.damping * 1.5);
+            state.leftPupil.y += (leftOffset.y - state.leftPupil.y) * (state.damping * 1.5);
+            
+            state.rightPupil.x += (rightOffset.x - state.rightPupil.x) * (state.damping * 1.5);
+            state.rightPupil.y += (rightOffset.y - state.rightPupil.y) * (state.damping * 1.5);
+
+            irisGroupLeft.setAttribute('transform', `translate(${state.leftPupil.x}, ${state.leftPupil.y})`);
+            irisGroupRight.setAttribute('transform', `translate(${state.rightPupil.x}, ${state.rightPupil.y})`);
+
+            const mascotCenterX = svgRect.left + (svgRect.width / 2);
+            const tiltAngle = ((state.mouseX - mascotCenterX) / window.innerWidth) * 12;
+            
+            let currentY = state.posY;
+            if (state.energy === 0 && state.locomotionMode === 'fly') {
+                currentY += Math.sin(now * 0.0025) * 8;
+            }
+
+            const totalRotation = tiltAngle + state.trickRotation;
+            const finalScaleX = state.squashX * state.petScale;
+            const finalScaleY = state.squashY * state.petScale;
+            mascotContainer.style.transform = `translate(${state.posX}px, ${currentY}px) rotate(${totalRotation}deg) scale(${finalScaleX}, ${finalScaleY})`;
+
+            renderParticles();
+
+            requestAnimationFrame(renderLoop);
+        }
+
+        function setEyelidOpenness(openFactor) {
+            const topY = 110 + (70 * openFactor);
+            const bottomY = 250 - (70 * openFactor);
+
+            const topPathLeft = `M 80,110 L 190,110 L 190,${topY} L 80,${topY} Z`;
+            const bottomPathLeft = `M 80,250 L 190,250 L 190,${bottomY} L 80,${bottomY} Z`;
+
+            const topPathRight = `M 210,110 L 320,110 L 320,${topY} L 210,${topY} Z`;
+            const bottomPathRight = `M 210,250 L 320,250 L 320,${bottomY} L 210,${bottomY} Z`;
+
+            eyelidTopLeft.setAttribute('d', topPathLeft);
+            eyelidBottomLeft.setAttribute('d', bottomPathLeft);
+            eyelidTopRight.setAttribute('d', topPathRight);
+            eyelidBottomRight.setAttribute('d', bottomPathRight);
+        }
+
+        function triggerBlink(duration = 140) {
+            if (state.isBlinking) return;
+            state.isBlinking = true;
+            audioSystem.playBlinkSound();
+
+            const startTime = performance.now();
+
+            function animateBlink(now) {
+                const elapsed = now - startTime;
+                const half = duration / 2;
+
+                if (elapsed < half) {
+                    const progress = elapsed / half;
+                    setEyelidOpenness(progress);
+                    requestAnimationFrame(animateBlink);
+                } else if (elapsed < duration) {
+                    const progress = 1 - ((elapsed - half) / half);
+                    setEyelidOpenness(progress);
+                    requestAnimationFrame(animateBlink);
+                } else {
+                    setEyelidOpenness(0);
+                    state.isBlinking = false;
+                }
+            }
+
+            requestAnimationFrame(animateBlink);
+        }
+
+        function scheduleNextAutoBlink() {
+            const delay = 2200 + Math.random() * 3000;
+            setTimeout(() => {
+                if (state.autoBlink) {
+                    triggerBlink();
+                    if (Math.random() < 0.20) {
+                        setTimeout(() => triggerBlink(110), 200);
+                    }
+                }
+                scheduleNextAutoBlink();
+            }, delay);
+        }
+        scheduleNextAutoBlink();
+
+        function createSparkParticles(x, y) {
+            for (let i = 0; i < 18; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 5;
+                particles.push({
+                    x, y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 1,
+                    life: 1,
+                    size: 3 + Math.random() * 5,
+                    color: ['#f43f5e', '#a855f7', '#38bdf8', '#fbbf24'][Math.floor(Math.random() * 4)]
+                });
+            }
+        }
+
+        function renderParticles() {
+            particleCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.035;
+
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+
+                particleCtx.save();
+                particleCtx.globalAlpha = p.life;
+                particleCtx.fillStyle = p.color;
+                particleCtx.beginPath();
+                particleCtx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+                particleCtx.fill();
+                particleCtx.restore();
+            }
+        }
+
+        const characters = {
+            gloop: {
+                stop1: '#a855f7', stop2: '#7e22ce', stop3: '#581c87',
+                iris1: '#38bdf8', iris2: '#0284c7', iris3: '#0369a1',
+                mouth: 'M 160,255 Q 200,295 240,255', tongue: true,
+                eyebrow: 'M 100,115 Q 135,95 170,115',
+                accType: 'ears'
+            },
+            robo: {
+                stop1: '#38bdf8', stop2: '#0284c7', stop3: '#075985',
+                iris1: '#facc15', iris2: '#eab308', iris3: '#ca8a04',
+                mouth: 'M 160,260 L 240,260', tongue: false,
+                eyebrow: 'M 100,105 L 170,105',
+                accType: 'antenna'
+            },
+            monster: {
+                stop1: '#34d399', stop2: '#059669', stop3: '#064e3b',
+                iris1: '#f43f5e', iris2: '#e11d48', iris3: '#9f1239',
+                mouth: 'M 155,255 Q 200,305 245,255', tongue: true,
+                eyebrow: 'M 100,100 Q 135,120 170,100',
+                accType: 'ears'
+            },
+            kitty: {
+                stop1: '#fbbf24', stop2: '#d97706', stop3: '#78350f',
+                iris1: '#34d399', iris2: '#059669', iris3: '#064e3b',
+                mouth: 'M 165,255 Q 200,270 235,255', tongue: false,
+                eyebrow: 'M 100,115 Q 135,100 170,115',
+                accType: 'ears'
+            },
+            chick: {
+                stop1: '#fde047', stop2: '#eab308', stop3: '#a16207',
+                iris1: '#a855f7', iris2: '#7e22ce', iris3: '#581c87',
+                mouth: 'M 170,250 L 200,275 L 230,250 Z', tongue: false,
+                eyebrow: 'M 100,110 Q 135,95 170,110',
+                accType: 'none'
+            },
+            alien: {
+                stop1: '#6366f1', stop2: '#4338ca', stop3: '#312e81',
+                iris1: '#4ade80', iris2: '#16a34a', iris3: '#14532d',
+                mouth: 'M 170,260 Q 200,240 230,260', tongue: false,
+                eyebrow: 'M 100,115 Q 135,130 170,115',
+                accType: 'antenna'
+            }
+        };
+
+        function applyCharacter(charKey) {
+            const c = characters[charKey] || characters.gloop;
+            state.currentCharacter = charKey;
+
+            document.getElementById('body-stop-1').setAttribute('stop-color', c.stop1);
+            document.getElementById('body-stop-2').setAttribute('stop-color', c.stop2);
+            document.getElementById('body-stop-3').setAttribute('stop-color', c.stop3);
+
+            document.getElementById('iris-color-1').setAttribute('stop-color', c.iris1);
+            document.getElementById('iris-color-2').setAttribute('stop-color', c.iris2);
+            document.getElementById('iris-color-3').setAttribute('stop-color', c.iris3);
+
+            eyelidTopLeft.setAttribute('fill', c.stop2);
+            eyelidBottomLeft.setAttribute('fill', c.stop2);
+            eyelidTopRight.setAttribute('fill', c.stop2);
+            eyelidBottomRight.setAttribute('fill', c.stop2);
+
+            mouthPath.setAttribute('d', c.mouth);
+            tonguePath.style.display = c.tongue ? 'block' : 'none';
+
+            eyebrowLeft.setAttribute('d', c.eyebrow);
+            eyebrowRight.setAttribute('d', c.eyebrow.replace('100,', '230,').replace('135,', '265,').replace('170,', '300,'));
+
+            if (c.accType === 'antenna') {
+                accessoryLeft.classList.add('hidden');
+                accessoryRight.classList.add('hidden');
+                antennaOrb.classList.remove('hidden');
+                antennaStem.classList.remove('hidden');
+            } else if (c.accType === 'ears') {
+                accessoryLeft.classList.remove('hidden');
+                accessoryRight.classList.remove('hidden');
+                antennaOrb.classList.add('hidden');
+                antennaStem.classList.add('hidden');
+            } else {
+                accessoryLeft.classList.add('hidden');
+                accessoryRight.classList.add('hidden');
+                antennaOrb.classList.add('hidden');
+                antennaStem.classList.add('hidden');
+            }
+
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                if (btn.dataset.character === charKey) {
+                    btn.classList.add('border-pink-500/60', 'bg-pink-500/20');
+                } else {
+                    btn.classList.remove('border-pink-500/60', 'bg-pink-500/20');
+                }
+            });
+        }
+
+        function setMood(moodText) {
+            document.getElementById('mood-badge').textContent = moodText;
+        }
+
+        function resetExpressionOverlays() {
+            [heartPupilLeft, heartPupilRight, dizzyPupilLeft, dizzyPupilRight, 
+             overlaySunglasses, overlayTear, overlayAngryPop, overlayZzz].forEach(el => {
+                if (el) el.classList.add('hidden');
+            });
+            pupilLeft.setAttribute('opacity', '1');
+            pupilRight.setAttribute('opacity', '1');
+            setEyelidOpenness(0);
+        }
+
+        function setExpression(exprName, duration = 3000) {
+            audioSystem.init();
+            if (state.expressionTimer) clearTimeout(state.expressionTimer);
+            resetExpressionOverlays();
+
+            switch (exprName) {
+                case 'happy':
+                    setMood('Happy! 😄');
+                    mouthPath.setAttribute('d', 'M 155,250 Q 200,300 245,250');
+                    eyebrowLeft.setAttribute('d', 'M 100,105 Q 135,85 170,105');
+                    eyebrowRight.setAttribute('d', 'M 230,105 Q 265,85 300,105');
+                    tonguePath.style.display = 'block';
+                    tonguePath.setAttribute('d', 'M 180,270 Q 200,295 220,270 Z');
+                    audioSystem.playPokeSound();
+                    break;
+
+                case 'shocked':
+                    setMood('Shocked! 😲');
+                    mouthPath.setAttribute('d', 'M 180,265 A 22,22 0 1 0 220,265 A 22,22 0 1 0 180,265');
+                    eyebrowLeft.setAttribute('d', 'M 100,90 Q 135,70 170,90');
+                    eyebrowRight.setAttribute('d', 'M 230,90 Q 265,70 300,90');
+                    tonguePath.style.display = 'none';
+                    audioSystem.playBlinkSound();
+                    break;
+
+                case 'silly':
+                    setMood('Silly! 😜');
+                    mouthPath.setAttribute('d', 'M 160,255 Q 200,285 240,255');
+                    tonguePath.style.display = 'block';
+                    tonguePath.setAttribute('d', 'M 180,268 Q 200,310 220,268 Z');
+                    eyebrowLeft.setAttribute('d', 'M 100,100 Q 135,115 170,95');
+                    eyebrowRight.setAttribute('d', 'M 230,95 Q 265,75 300,100');
+                    audioSystem.playPokeSound();
+                    break;
+
+                case 'angry':
+                    setMood('Angry! 😡');
+                    mouthPath.setAttribute('d', 'M 160,280 Q 200,250 240,280');
+                    eyebrowLeft.setAttribute('d', 'M 95,85 L 175,120');
+                    eyebrowRight.setAttribute('d', 'M 225,120 L 305,85');
+                    overlayAngryPop.classList.remove('hidden');
+                    tonguePath.style.display = 'none';
+                    audioSystem.playAngrySound();
+                    state.squashX = 1.12;
+                    state.squashY = 1.12;
+                    break;
+
+                case 'love':
+                    setMood('In Love! 😍');
+                    mouthPath.setAttribute('d', 'M 160,250 Q 200,290 240,250');
+                    eyebrowLeft.setAttribute('d', 'M 100,105 Q 135,85 170,105');
+                    eyebrowRight.setAttribute('d', 'M 230,105 Q 265,85 300,105');
+                    pupilLeft.setAttribute('opacity', '0');
+                    pupilRight.setAttribute('opacity', '0');
+                    heartPupilLeft.classList.remove('hidden');
+                    heartPupilRight.classList.remove('hidden');
+                    tonguePath.style.display = 'block';
+                    audioSystem.playLoveSound();
+                    break;
+
+                case 'sad':
+                    setMood('Sad... 🥺');
+                    mouthPath.setAttribute('d', 'M 160,280 Q 200,250 240,280');
+                    eyebrowLeft.setAttribute('d', 'M 100,120 Q 135,135 170,115');
+                    eyebrowRight.setAttribute('d', 'M 230,115 Q 265,135 300,120');
+                    overlayTear.classList.remove('hidden');
+                    tonguePath.style.display = 'none';
+                    audioSystem.playSadSound();
+                    break;
+
+                case 'sleepy':
+                    setMood('Sleepy... 😴');
+                    mouthPath.setAttribute('d', 'M 180,265 A 10,10 0 1 0 200,265 A 10,10 0 1 0 180,265');
+                    eyebrowLeft.setAttribute('d', 'M 100,125 Q 135,130 170,125');
+                    eyebrowRight.setAttribute('d', 'M 230,125 Q 265,130 300,125');
+                    setEyelidOpenness(0.70);
+                    overlayZzz.classList.remove('hidden');
+                    tonguePath.style.display = 'none';
+                    audioSystem.playSadSound();
+                    break;
+
+                case 'cool':
+                    setMood('Feelin\' Cool 😎');
+                    mouthPath.setAttribute('d', 'M 160,260 Q 195,285 240,255');
+                    eyebrowLeft.setAttribute('d', 'M 100,100 L 170,100');
+                    eyebrowRight.setAttribute('d', 'M 230,100 L 300,100');
+                    overlaySunglasses.classList.remove('hidden');
+                    tonguePath.style.display = 'none';
+                    audioSystem.playCoolSound();
+                    break;
+
+                case 'skeptical':
+                    setMood('Skeptical... 🤨');
+                    mouthPath.setAttribute('d', 'M 160,270 Q 200,260 240,265');
+                    eyebrowLeft.setAttribute('d', 'M 100,80 Q 135,65 170,85');
+                    eyebrowRight.setAttribute('d', 'M 230,125 Q 265,130 300,120');
+                    tonguePath.style.display = 'none';
+                    audioSystem.playBlinkSound();
+                    break;
+
+                case 'dizzy':
+                    setMood('Whoa Dizzy! 😵');
+                    mouthPath.setAttribute('d', 'M 160,260 Q 180,275 200,260 T 240,260');
+                    eyebrowLeft.setAttribute('d', 'M 100,120 Q 135,95 170,120');
+                    eyebrowRight.setAttribute('d', 'M 230,120 Q 265,95 300,120');
+                    pupilLeft.setAttribute('opacity', '0');
+                    pupilRight.setAttribute('opacity', '0');
+                    dizzyPupilLeft.classList.remove('hidden');
+                    dizzyPupilRight.classList.remove('hidden');
+                    tonguePath.style.display = 'none';
+                    audioSystem.playPokeSound();
+                    break;
+            }
+
+            if (duration > 0) {
+                state.expressionTimer = setTimeout(() => {
+                    resetExpressionOverlays();
+                    applyCharacter(state.currentCharacter);
+                }, duration);
+            }
+        }
+
+        // Click on mascot to poke it or trigger jump
+        mascotContainer.addEventListener('click', (e) => {
+            e.stopPropagation();
+            audioSystem.init();
+
+            if (state.locomotionMode === 'walk' && state.isGrounded) {
+                // Leap high on direct mascot click!
+                triggerMascotJump('highjump');
+            } else {
+                audioSystem.playPokeSound();
+                triggerBlink(110);
+                createSparkParticles(e.clientX, e.clientY);
+                state.squashX = 1.18;
+                state.squashY = 1.18;
+                state.trickRotation = 8;
+            }
+            
+            mouthPath.setAttribute('d', 'M 170,250 Q 200,295 230,250');
+            setMood('Giggles! 🤭');
+
+            setTimeout(() => {
+                applyCharacter(state.currentCharacter);
+                setMood('Playful 🥰');
+            }, 800);
+        });
+
+        document.getElementById('btn-jump-now').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (state.locomotionMode === 'walk') {
+                triggerMascotJump();
+            } else {
+                // Fly mode quick leap
+                state.lastTrickTime = Date.now();
+                state.trickProgress = 0;
+                state.trickState = 'highjump';
+                audioSystem.playTrickSound();
+            }
+        });
+
+        document.getElementById('btn-audio').addEventListener('click', (e) => {
+            e.stopPropagation();
+            audioSystem.init();
+            audioSystem.enabled = !audioSystem.enabled;
+            const icon = document.getElementById('audio-icon');
+            if (audioSystem.enabled) {
+                icon.className = 'fa-solid fa-volume-high text-pink-400';
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark text-slate-400';
+            }
+        });
+
+        // Locomotion Mode Toggle Buttons
+        const btnModeFly = document.getElementById('btn-mode-fly');
+        const btnModeWalk = document.getElementById('btn-mode-walk');
+
+        btnModeFly.addEventListener('click', (e) => {
+            e.stopPropagation();
+            state.locomotionMode = 'fly';
+            btnModeFly.className = 'flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all bg-pink-500/20 text-pink-300 border border-pink-500/40 flex items-center justify-center space-x-1.5';
+            btnModeWalk.className = 'flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-slate-200 border border-transparent flex items-center justify-center space-x-1.5';
+            setMood('Airborne Float! 🛸');
+        });
+
+        btnModeWalk.addEventListener('click', (e) => {
+            e.stopPropagation();
+            state.locomotionMode = 'walk';
+            state.isGrounded = false;
+            btnModeWalk.className = 'flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all bg-pink-500/20 text-pink-300 border border-pink-500/40 flex items-center justify-center space-x-1.5';
+            btnModeFly.className = 'flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-slate-200 border border-transparent flex items-center justify-center space-x-1.5';
+            setMood('Surface Walking! 🐾');
+        });
+
+        document.getElementById('btn-blink-now').addEventListener('click', (e) => {
+            e.stopPropagation();
+            audioSystem.init();
+            triggerBlink();
+        });
+
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                applyCharacter(btn.dataset.character);
+            });
+        });
+
+        document.getElementById('slider-mobility').addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            state.energy = val;
+            const text = val === 0 ? '0 (Calm)' : (val <= 3 ? `${val} (Low)` : (val <= 7 ? `${val} (Hyper)` : `${val} (MAX ⚡)`));
+            document.getElementById('val-mobility').textContent = text;
+            if (val > 0) {
+                setMood(val > 7 ? 'Super Hyper! ⚡' : 'Energetic! 🏃');
+            } else {
+                setMood('Playful 🥰');
+            }
+        });
+
+        document.getElementById('slider-pet-scale').addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            state.petScale = val / 100;
+            document.getElementById('val-pet-scale').textContent = `${val}%`;
+        });
+
+        ['walk', 'hop', 'flip', 'spin', 'highjump'].forEach(trickKey => {
+            const toggleEl = document.getElementById(`toggle-trick-${trickKey}`);
+            if (toggleEl) {
+                toggleEl.addEventListener('change', (e) => {
+                    state.tricks[trickKey] = e.target.checked;
+                });
+            }
+        });
+
+        document.getElementById('btn-expr-happy').addEventListener('click', (e) => { e.stopPropagation(); setExpression('happy'); });
+        document.getElementById('btn-expr-shocked').addEventListener('click', (e) => { e.stopPropagation(); setExpression('shocked'); });
+        document.getElementById('btn-expr-silly').addEventListener('click', (e) => { e.stopPropagation(); setExpression('silly'); });
+        document.getElementById('btn-expr-angry').addEventListener('click', (e) => { e.stopPropagation(); setExpression('angry'); });
+        document.getElementById('btn-expr-love').addEventListener('click', (e) => { e.stopPropagation(); setExpression('love'); });
+        document.getElementById('btn-expr-sad').addEventListener('click', (e) => { e.stopPropagation(); setExpression('sad'); });
+        document.getElementById('btn-expr-sleepy').addEventListener('click', (e) => { e.stopPropagation(); setExpression('sleepy'); });
+        document.getElementById('btn-expr-cool').addEventListener('click', (e) => { e.stopPropagation(); setExpression('cool'); });
+        document.getElementById('btn-expr-skeptical').addEventListener('click', (e) => { e.stopPropagation(); setExpression('skeptical'); });
+        document.getElementById('btn-expr-dizzy').addEventListener('click', (e) => { e.stopPropagation(); setExpression('dizzy'); });
+
+        applyCharacter('gloop');
+        requestAnimationFrame(renderLoop);
+    </script>
+</body>
+</html>
