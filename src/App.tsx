@@ -1,9 +1,29 @@
 import { useEffect, useRef, useState } from 'react'
-import type { PetInstance } from './engine'
+import type { Emotion, PetInstance } from './engine'
 import { createPet } from './engine'
 import { createEyesBehavior, createBlinkBehavior, createClickBehavior } from './engine/behaviors'
 import ExportModal from './ExportModal'
 import StandalonePet from './StandalonePet'
+
+/* -------------------------------------------------------- */
+/*  Constants                                               */
+/* -------------------------------------------------------- */
+
+interface EmotionOption {
+  readonly id: Emotion
+  readonly label: string
+  readonly emoji: string
+}
+
+const EMOTIONS: EmotionOption[] = [
+  { id: 'neutral',   label: 'Neutral',   emoji: '😐' },
+  { id: 'happy',     label: 'Feliz',     emoji: '😊' },
+  { id: 'sad',       label: 'Triste',    emoji: '😢' },
+  { id: 'angry',     label: 'Enojado',  emoji: '😠' },
+  { id: 'surprised', label: 'Sorprendido', emoji: '😮' },
+  { id: 'sleepy',    label: 'Soñoliento', emoji: '😴' },
+  { id: 'scared',    label: 'Asustado',  emoji: '😨' },
+]
 
 /* -------------------------------------------------------- */
 /*  Toggle switch component                                 */
@@ -44,6 +64,34 @@ function Toggle({
 }
 
 /* -------------------------------------------------------- */
+/*  Emotion button component                                */
+/* -------------------------------------------------------- */
+
+function EmotionButton({
+  option,
+  active,
+  onClick,
+}: {
+  option: EmotionOption
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer ${
+        active
+          ? 'bg-purple-500/30 text-purple-200 ring-1 ring-purple-400/50 shadow-lg shadow-purple-500/10'
+          : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70 ring-1 ring-white/5'
+      }`}
+    >
+      <span className="text-base">{option.emoji}</span>
+      <span>{option.label}</span>
+    </button>
+  )
+}
+
+/* -------------------------------------------------------- */
 /*  Behavior state                                          */
 /* -------------------------------------------------------- */
 
@@ -73,6 +121,7 @@ function App() {
   const [color, setColor] = useState('#ff6b6b')
   const [size, setSize] = useState(120)
   const [eyeSpeed, setEyeSpeed] = useState(0.15)
+  const [emotion, setEmotion] = useState<Emotion>('neutral')
   const [showExport, setShowExport] = useState(false)
 
   /* ---- Route: standalone pet page ---- */
@@ -112,6 +161,7 @@ function App() {
       color,
       size,
       behaviors: behaviorList,
+      defaultEmotion: emotion,
     })
 
     /* Mount into the container */
@@ -125,7 +175,7 @@ function App() {
       pet.unmount()
       petRef.current = null
     }
-  }, [behaviors, color, size, eyeSpeed])
+  }, [behaviors, color, size, eyeSpeed, emotion])
 
   /* ---- Helpers ---- */
 
@@ -184,6 +234,23 @@ function App() {
                 >
                   Click 🖱️
                 </Toggle>
+              </div>
+            </section>
+
+            {/* Emotions section */}
+            <section>
+              <h2 className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-3">
+                Emoción
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {EMOTIONS.map((opt) => (
+                  <EmotionButton
+                    key={opt.id}
+                    option={opt}
+                    active={emotion === opt.id}
+                    onClick={() => setEmotion(opt.id)}
+                  />
+                ))}
               </div>
             </section>
 
@@ -299,6 +366,7 @@ function App() {
             .map(([k]) => k)}
           color={color}
           size={size}
+          emotion={emotion}
           onClose={() => setShowExport(false)}
         />
       )}

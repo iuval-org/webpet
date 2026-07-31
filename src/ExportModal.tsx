@@ -8,6 +8,7 @@ interface ExportModalProps {
   behaviors: string[] // active behavior names
   color: string // hex with #, e.g. "#ff6b6b"
   size: number
+  emotion?: string // current emotion
   onClose: () => void
 }
 
@@ -31,20 +32,29 @@ function serializeBehaviors(names: string[]): string {
   return names.map((n) => map[n] ?? n).join(',')
 }
 
-function buildUrl(behaviors: string[], color: string, size: number): string {
+function buildUrl(behaviors: string[], color: string, size: number, emotion?: string): string {
   const b = serializeBehaviors(behaviors)
   const c = color.replace('#', '')
-  return `${BASE_URL}/p/${b}/${c}/${size}`
+  let url = `${BASE_URL}/p/${b}/${c}/${size}`
+  if (emotion && emotion !== 'neutral') {
+    url += `?emotion=${emotion}`
+  }
+  return url
 }
 
 function buildDevUrl(
   behaviors: string[],
   color: string,
   size: number,
+  emotion?: string,
 ): string {
   const b = serializeBehaviors(behaviors)
   const c = color.replace('#', '')
-  return `${BASE_URL}/?pet=${b}&color=${c}&size=${size}`
+  let url = `${BASE_URL}/?pet=${b}&color=${c}&size=${size}`
+  if (emotion && emotion !== 'neutral') {
+    url += `&emotion=${emotion}`
+  }
+  return url
 }
 
 function estimateBundleSize(behaviors: string[]): string {
@@ -72,14 +82,15 @@ export default function ExportModal({
   behaviors,
   color,
   size,
+  emotion,
   onClose,
 }: ExportModalProps) {
   const [copied, setCopied] = useState(false)
 
   const isDev = import.meta.env.DEV
   const fullUrl = isDev
-    ? buildDevUrl(behaviors, color, size)
-    : buildUrl(behaviors, color, size)
+    ? buildDevUrl(behaviors, color, size, emotion)
+    : buildUrl(behaviors, color, size, emotion)
 
   const scriptTag = `<script src="${fullUrl}" async></script>`
   const estimatedSize = estimateBundleSize(behaviors)
@@ -178,6 +189,11 @@ export default function ExportModal({
             <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-1 text-slate-600 dark:text-slate-300">
               📐 {size}px
             </span>
+            {emotion && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-1 text-slate-600 dark:text-slate-300">
+                😌 {emotion}
+              </span>
+            )}
             {behaviors.map((b) => (
               <span
                 key={b}

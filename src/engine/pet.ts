@@ -4,6 +4,8 @@ import { Renderer } from './renderer.ts'
 import type { Renderer as RendererType } from './renderer.ts'
 import { core } from './core.ts'
 import { input } from './input.ts'
+import { createEmotionBehavior } from './emotion.ts'
+import type { Emotion, EmotionAPI } from './emotion.ts'
 
 /** User-provided color value (hex, rgb, hsl, or named). */
 type Color = string
@@ -20,6 +22,12 @@ export interface PetConfig {
   readonly size?: number
   /** Render mode — 'canvas' or 'div' (default: 'canvas'). */
   readonly mode?: 'canvas' | 'div'
+  /** Enable the emotion system (default: true). */
+  readonly emotions?: boolean
+  /** Default emotion when emotion system is enabled (default: 'neutral'). */
+  readonly defaultEmotion?: Emotion
+  /** Emotion transition speed 0-1 (default: 0.04). */
+  readonly emotionSpeed?: number
 }
 
 /** A live pet instance with its own state, behaviors, and renderer. */
@@ -40,6 +48,14 @@ export interface PetInstance {
   unmount(): void
   /** Get a list of active behavior names. */
   getBehaviors(): string[]
+  /** Set the pet's emotion (only available when emotions are enabled). */
+  setEmotion?(emotion: Emotion): void
+  /** Get the pet's current emotion (only available when emotions are enabled). */
+  getEmotion?(): Emotion
+  /** Register an emotion change listener. Returns an unsubscribe function. */
+  onEmotionChange?(cb: (emotion: Emotion) => void): () => void
+  /** Access the raw EmotionAPI for advanced use. */
+  readonly emotion?: EmotionAPI
 }
 
 let _nextId = 0
@@ -56,10 +72,23 @@ export function createPet(config: PetConfig): PetInstance {
   const color: Color = config.color ?? '#a78bfa'
   const size = config.size ?? 48
   const mode = config.mode ?? 'canvas'
+  const enableEmotions = config.emotions ?? true
 
   const behaviorManager = new BehaviorManager()
   for (const b of config.behaviors ?? []) {
     behaviorManager.register(b)
+  }
+
+  /* ---- Emotion system ---- */
+  const emotionBehavior = enableEmotions
+    ? createEmotionBehavior({
+        defaultEmotion: config.defaultEmotion,
+        transitionSpeed: config.emotionSpeed,
+      })
+    : null
+
+  if (emotionBehavior) {
+    behaviorManager.register(emotionBehavior)
   }
 
   let _renderer: RendererType | null = null
@@ -97,6 +126,14 @@ export function createPet(config: PetConfig): PetInstance {
     getBehaviors(): string[] {
       return behaviorManager.listActive()
     },
+  }
+
+  /* ---- Emotion methods (lifted from behavior) ---- */
+  if (emotionBehavior) {
+    instance.setEmotion = (e: Emotion) => emotionBehavior.setEmotion(e)
+    instance.getEmotion = () => emotionBehavior.getEmotion()
+    instance.onEmotionChange = (cb) => emotionBehavior.onEmotionChange(cb)
+    ;(instance as unknown as Record<string, unknown>).emotion = emotionBehavior
   }
 
   return instance

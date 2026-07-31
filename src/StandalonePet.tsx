@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { createPet } from './engine'
+import type { Emotion } from './engine'
 import { createEyesBehavior, createBlinkBehavior, createClickBehavior } from './engine/behaviors'
 import type { Behavior } from './engine/behavior'
 
@@ -12,29 +13,42 @@ interface StandaloneParams {
   color: string
   size: number
   eyeSpeed: number
+  emotion: Emotion
 }
 
 function parseParams(): StandaloneParams | null {
   const params = new URLSearchParams(window.location.search)
   const petParam = params.get('pet')
   if (petParam) {
-    // ?pet=ojos,parpadeo,click&color=ff6b6b&size=120&eyeSpeed=0.15
+    // ?pet=ojos,parpadeo,click&color=ff6b6b&size=120&eyeSpeed=0.15&emotion=happy
+    const rawEmotion = params.get('emotion')
+    const validEmotions: Emotion[] = ['neutral', 'happy', 'sad', 'angry', 'surprised', 'sleepy', 'scared']
+    const emotion: Emotion = validEmotions.includes(rawEmotion as Emotion)
+      ? (rawEmotion as Emotion)
+      : 'neutral'
     return {
       behaviors: petParam.split(',').filter(Boolean),
       color: params.get('color') ?? 'ff6b6b',
       size: Number(params.get('size')) || 120,
       eyeSpeed: Number(params.get('eyeSpeed')) || 0.15,
+      emotion,
     }
   }
 
-  // Also try path-based: /p/ojos,parpadeo,click/ff6b6b/120?eyeSpeed=0.15
+  // Also try path-based: /p/ojos,parpadeo,click/ff6b6b/120?emotion=happy
   const match = window.location.pathname.match(/^\/p\/([^/]+)\/([^/]+)\/(\d+)/)
   if (match) {
+    const rawEmotion = params.get('emotion')
+    const validEmotions: Emotion[] = ['neutral', 'happy', 'sad', 'angry', 'surprised', 'sleepy', 'scared']
+    const emotion: Emotion = validEmotions.includes(rawEmotion as Emotion)
+      ? (rawEmotion as Emotion)
+      : 'neutral'
     return {
       behaviors: match[1].split(',').filter(Boolean),
       color: match[2],
       size: Number(match[3]) || 120,
       eyeSpeed: Number(params.get('eyeSpeed')) || 0.15,
+      emotion,
     }
   }
 
@@ -52,7 +66,7 @@ export default function StandalonePet() {
     const parsed = parseParams()
     if (!parsed) return
 
-    const { behaviors: behaviorNames, color, size, eyeSpeed } = parsed
+    const { behaviors: behaviorNames, color, size, eyeSpeed, emotion } = parsed
 
     const behaviorList: Behavior[] = []
 
@@ -74,6 +88,7 @@ export default function StandalonePet() {
       id: 'standalone',
       color: `#${color}`,
       size,
+      defaultEmotion: emotion,
       behaviors: behaviorList,
     })
 
