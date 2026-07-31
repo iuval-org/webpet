@@ -25,5 +25,11 @@ export type { Emotion, EmotionDrawState, EmotionConfig, EmotionAPI } from './emo
 export { createEmotionTriggers } from './emotionTriggers.ts'
 export type { EmotionTriggersAPI, BuiltinTrigger, TriggerName, EmotionTriggerConfig } from './emotionTriggers.ts'
 
+export { CHARACTERS, CHARACTER_LIST } from './character.ts'
+export type { CharacterId, CharacterDef, AccessoryType } from './character.ts'
+export { setCharacter, getCharacter, getCharacterDef } from './character.ts'
+
+export { setAudioEnabled, toggleAudio, isAudioEnabled, playBlink, playPoke } from './audio.ts'
+
 /** Built-in behaviors (eyes, blink, ...). */
 export * as behaviors from './behaviors/index.ts'

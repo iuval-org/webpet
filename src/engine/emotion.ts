@@ -1,8 +1,14 @@
 /**
- * Emotion System — core emotion types, draw state, and behavior.
+ * Emotion System — core emotion types, draw state, and character behavior.
  *
- * Defines 7 emotions, their target draw states, and an emotion Behavior
- * that draws the pet's expression (mouth + eye modifiers) on the canvas.
+ * Integrates with the character system to draw:
+ * - Character body (blob + gradient)
+ * - Eyebrows
+ * - Eyelids (blink animation)
+ * - Mouth (per emotion)
+ * - Smooth transitions between emotions
+ *
+ * This behavior MUST be registered FIRST as it clears the canvas.
  *
  * @module engine/emotion
  */
@@ -10,6 +16,18 @@
 import type { Behavior } from './behavior.ts'
 import type { Renderer } from './renderer.ts'
 import type { InputState } from './input.ts'
+import {
+  drawBody,
+  drawAccessories,
+  drawEyebrows,
+  drawEyelids,
+  drawMouth,
+  getCharacterDef,
+  setCharacter,
+  getCharacter,
+  type CharacterId,
+} from './character.ts'
+import { playBlink, playPoke, playAngry, playSad } from './audio.ts'
 
 /* -------------------------------------------------------- */
 /*  Types                                                  */
@@ -49,12 +67,12 @@ export interface EmotionConfig {
 /* -------------------------------------------------------- */
 
 const TARGETS: Record<Emotion, EmotionDrawState> = {
-  neutral:   { mouthCurvature: 0,   mouthOpenness: 0,   eyeOpenness: 0.5, eyeAngle: 0,   trembling: 0 },
+  neutral:   { mouthCurvature: 0,   mouthOpenness: 0,   eyeOpenness: 0.5, eyeAngle: 0,  trembling: 0 },
   happy:     { mouthCurvature: 1,   mouthOpenness: 0,   eyeOpenness: 0.4, eyeAngle: 0.3, trembling: 0 },
-  sad:       { mouthCurvature: -1,  mouthOpenness: 0,   eyeOpenness: 0.35, eyeAngle: -0.2, trembling: 0 },
+  sad:       { mouthCurvature: -1,  mouthOpenness: 0,   eyeOpenness: 0.35, eyeAngle: -0.15, trembling: 0 },
   angry:     { mouthCurvature: -0.4, mouthOpenness: 0.1, eyeOpenness: 0.45, eyeAngle: -0.5, trembling: 0.08 },
   surprised: { mouthCurvature: 0,   mouthOpenness: 0.8, eyeOpenness: 0.9, eyeAngle: 0.1, trembling: 0 },
-  sleepy:    { mouthCurvature: 0.1, mouthOpenness: 0,   eyeOpenness: 0.15, eyeAngle: 0,   trembling: 0 },
+  sleepy:    { mouthCurvature: 0.1, mouthOpenness: 0,   eyeOpenness: 0.15, eyeAngle: 0,  trembling: 0 },
   scared:    { mouthCurvature: -0.6, mouthOpenness: 0.5, eyeOpenness: 0.85, eyeAngle: -0.3, trembling: 0.5 },
 }
 
@@ -65,63 +83,6 @@ const TARGETS: Record<Emotion, EmotionDrawState> = {
 function cloneTarget(e: Emotion): EmotionDrawState {
   const s = TARGETS[e]
   return { ...s }
-}
-
-/**
- * Draw a mouth on the canvas based on the current emotion draw state.
- */
-function drawMouth(
-  ctx: CanvasRenderingContext2D,
-  size: number,
-  state: EmotionDrawState,
-  color: string,
-  time: number,
-): void {
-  const cx = size / 2
-  const mouthY = size * 0.68
-  const mouthW = size * 0.3
-  const strokeW = Math.max(size * 0.04, 2)
-
-  ctx.save()
-  ctx.strokeStyle = color
-  ctx.lineWidth = strokeW
-  ctx.lineCap = 'round'
-  ctx.lineJoin = 'round'
-
-  if (state.mouthOpenness > 0.3) {
-    /* Open mouth (surprised, scared) — draw an oval */
-    const oh = state.mouthOpenness * mouthW * 0.6
-    const ow = mouthW * (0.6 + state.mouthOpenness * 0.4)
-    ctx.beginPath()
-    ctx.ellipse(cx, mouthY + oh * 0.2, ow / 2, oh / 2, 0, 0, Math.PI * 2)
-    ctx.fillStyle = '#111'
-    ctx.fill()
-    ctx.stroke()
-  } else {
-    /* Closed mouth — a curved arc */
-    const curvature = state.mouthCurvature * mouthW * 0.35
-    ctx.beginPath()
-    ctx.moveTo(cx - mouthW / 2, mouthY)
-    ctx.quadraticCurveTo(cx, mouthY - curvature, cx + mouthW / 2, mouthY)
-    ctx.stroke()
-  }
-
-  /* Trembling effect — slight random offset */
-  if (state.trembling > 0.05) {
-    const amp = state.trembling * 3
-    ctx.strokeStyle = `${color}40`
-    ctx.lineWidth = strokeW * 0.5
-    ctx.beginPath()
-    const tx = cx - mouthW / 2 + Math.sin(time * 15) * amp
-    const ty = mouthY + Math.cos(time * 17) * amp
-    ctx.moveTo(tx, ty)
-    const ex = cx + mouthW / 2 + Math.sin(time * 13 + 1) * amp
-    const ey = mouthY + Math.cos(time * 19 + 2) * amp
-    ctx.quadraticCurveTo(cx + Math.sin(time * 11) * amp, mouthY - state.mouthCurvature * mouthW * 0.35 + Math.cos(time * 14) * amp, ex, ey)
-    ctx.stroke()
-  }
-
-  ctx.restore()
 }
 
 /* -------------------------------------------------------- */
@@ -138,12 +99,17 @@ export interface EmotionAPI {
   readonly getEmotion: () => Emotion
   readonly onEmotionChange: (cb: (emotion: Emotion) => void) => () => void
   readonly getDrawState: () => EmotionDrawState
+  readonly setCharacter: (id: CharacterId) => void
+  readonly getCharacter: () => CharacterId
 }
 
 /**
- * Create an emotion behaviour.
+ * Create the character + emotion behaviour.
  *
- * Draws the pet's emotional expression (mouth) over the canvas.
+ * Draws body, eyebrows, eyelids, and mouth on the canvas.
+ * Clears the canvas each frame so other behaviours draw on a clean surface.
+ * MUST be registered before other rendering behaviours (eyes, blink, etc.).
+ *
  * Other behaviours can read `getDrawState()` to adjust eye rendering.
  */
 export function createEmotionBehavior(config?: Partial<EmotionConfig>): Behavior & EmotionAPI {
@@ -159,12 +125,21 @@ export function createEmotionBehavior(config?: Partial<EmotionConfig>): Behavior
   let _current: Emotion = cfg.defaultEmotion
   let _target: Emotion = cfg.defaultEmotion
   let _draw: EmotionDrawState = cloneTarget(cfg.defaultEmotion)
+  let _blinkProgress = 0
+  let _lastBlinkTime = 0
 
   /* ---- Emotion API ---- */
 
   function setEmotion(emotion: Emotion): void {
     if (emotion === _target) return
     _target = emotion
+
+    // Play sound based on emotion
+    if (emotion === 'happy') playPoke()
+    else if (emotion === 'angry') playAngry()
+    else if (emotion === 'sad') playSad()
+    else if (emotion === 'surprised') playBlink()
+
     for (const cb of _listeners) cb(emotion)
   }
 
@@ -184,15 +159,25 @@ export function createEmotionBehavior(config?: Partial<EmotionConfig>): Behavior
     return _draw
   }
 
+  function setCharacterId(id: CharacterId): void {
+    setCharacter(id)
+  }
+
+  function getCharacterId(): CharacterId {
+    return getCharacter()
+  }
+
   /* ---- Behavior hooks ---- */
 
   return {
     name: 'emotion',
 
-    setEmotion,
+    setEmotion: setEmotion,
     getEmotion,
     onEmotionChange,
     getDrawState,
+    setCharacter: setCharacterId,
+    getCharacter: getCharacterId,
 
     onMount(r: Renderer): void {
       renderer = r
@@ -200,6 +185,8 @@ export function createEmotionBehavior(config?: Partial<EmotionConfig>): Behavior
       _current = cfg.defaultEmotion
       _target = cfg.defaultEmotion
       _draw = cloneTarget(_current)
+      _blinkProgress = 0
+      _lastBlinkTime = performance.now()
     },
 
     onUnmount(): void {
@@ -211,6 +198,14 @@ export function createEmotionBehavior(config?: Partial<EmotionConfig>): Behavior
       if (!r || !r.ctx) return
 
       time += delta / 1000
+      const charDef = getCharacterDef()
+
+      /* ---- Clear canvas (we own clearing) ---- */
+      r.clear()
+
+      /* ---- Draw character body ---- */
+      drawBody(r.ctx, size, charDef)
+      drawAccessories(r.ctx, size, charDef)
 
       /* ---- Smooth transition toward target ---- */
 
@@ -238,9 +233,39 @@ export function createEmotionBehavior(config?: Partial<EmotionConfig>): Behavior
         }
       }
 
-      /* ---- Draw mouth ---- */
+      /* ---- Auto-blink ---- */
+      const blinkInterval = 3000 + Math.random() * 2000
+      if (!_blinkProgress && performance.now() - _lastBlinkTime > blinkInterval) {
+        _blinkProgress = 0.001
+        _lastBlinkTime = performance.now()
+      }
+      if (_blinkProgress > 0 && _blinkProgress < 1) {
+        _blinkProgress += delta / 150 // 150ms blink duration
+        if (_blinkProgress >= 1) {
+          _blinkProgress = 0
+        }
+      }
 
-      drawMouth(r.ctx, size, _draw, color, time)
+      /* ---- Draw eyebrows ---- */
+      const browAngle = _draw.eyeAngle
+      drawEyebrows(r.ctx, size, browAngle, '#222')
+
+      /* ---- Draw eyelids (blink + sleepy) ---- */
+      const blinkAmount = _blinkProgress > 0
+        ? (_blinkProgress < 0.5 ? _blinkProgress * 2 : (1 - _blinkProgress) * 2)
+        : 0
+      const eyeCover = Math.max(blinkAmount, 1 - (_draw.eyeOpenness * 2))
+      drawEyelids(r.ctx, size, eyeCover, charDef.eyelidColor)
+
+      /* ---- Draw mouth ---- */
+      drawMouth(
+        r.ctx, size,
+        _draw.mouthCurvature,
+        _draw.mouthOpenness,
+        _draw.trembling,
+        color,
+        time,
+      )
     },
   }
 }

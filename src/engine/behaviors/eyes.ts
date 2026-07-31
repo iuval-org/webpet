@@ -51,18 +51,13 @@ interface EyeState {
 function computeEyeLayout(size: number): [EyeLayout, EyeLayout] {
   const radius = Math.max(size * 0.15, 4)
   return [
-    { cx: size * 0.35, cy: size * 0.4, radius },
-    { cx: size * 0.65, cy: size * 0.4, radius },
+    { cx: size * 0.35, cy: size * 0.42, radius },
+    { cx: size * 0.65, cy: size * 0.42, radius },
   ]
 }
 
 /**
  * Draw a single eye on the canvas context.
- *
- * @param ctx - The 2D rendering context.
- * @param eye - Layout info for this eye.
- * @param state - Current smoothed pupil offset for this eye.
- * @param config - Active eyes configuration.
  */
 function drawEye(
   ctx: CanvasRenderingContext2D,
@@ -116,9 +111,6 @@ function drawEye(
 
 /**
  * Create an "eyes follow cursor" behavior.
- *
- * The behavior draws a pair of eyes on the pet's canvas and makes the pupils
- * smoothly track the mouse cursor position within the container.
  *
  * @param config - Optional partial configuration (missing keys use defaults).
  * @returns A `Behavior` instance ready to be registered with a pet.
@@ -183,9 +175,8 @@ export function createEyesBehavior(config?: Partial<EyesConfig>): Behavior {
       smoothTarget(leftLayout, leftEye)
       smoothTarget(rightLayout, rightEye)
 
-      /* ---- Render eyes ---- */
+      /* ---- Render eyes (canvas is cleared by character behavior) ---- */
 
-      r.clear()
       drawEye(r.ctx, leftLayout, leftEye, cfg)
       drawEye(r.ctx, rightLayout, rightEye, cfg)
     },

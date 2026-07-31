@@ -6,6 +6,8 @@ import { core } from './core.ts'
 import { input } from './input.ts'
 import { createEmotionBehavior } from './emotion.ts'
 import type { Emotion, EmotionAPI } from './emotion.ts'
+import { setCharacter as _setGlobalCharacter } from './character.ts'
+import type { CharacterId } from './character.ts'
 
 /** User-provided color value (hex, rgb, hsl, or named). */
 type Color = string
@@ -28,6 +30,8 @@ export interface PetConfig {
   readonly defaultEmotion?: Emotion
   /** Emotion transition speed 0-1 (default: 0.04). */
   readonly emotionSpeed?: number
+  /** Character preset (default: 'gloop'). */
+  readonly character?: CharacterId
 }
 
 /** A live pet instance with its own state, behaviors, and renderer. */
@@ -74,12 +78,14 @@ export function createPet(config: PetConfig): PetInstance {
   const mode = config.mode ?? 'canvas'
   const enableEmotions = config.emotions ?? true
 
-  const behaviorManager = new BehaviorManager()
-  for (const b of config.behaviors ?? []) {
-    behaviorManager.register(b)
+  /* ---- Set global character before behaviors mount ---- */
+  if (config.character) {
+    _setGlobalCharacter(config.character)
   }
 
-  /* ---- Emotion system ---- */
+  const behaviorManager = new BehaviorManager()
+
+  /* ---- Emotion system (must register FIRST — clears canvas) ---- */
   const emotionBehavior = enableEmotions
     ? createEmotionBehavior({
         defaultEmotion: config.defaultEmotion,
@@ -89,6 +95,10 @@ export function createPet(config: PetConfig): PetInstance {
 
   if (emotionBehavior) {
     behaviorManager.register(emotionBehavior)
+  }
+
+  for (const b of config.behaviors ?? []) {
+    behaviorManager.register(b)
   }
 
   let _renderer: RendererType | null = null

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Emotion, PetInstance } from './engine'
-import { createPet } from './engine'
+import type { CharacterId, Emotion, PetInstance } from './engine'
+import { createPet, toggleAudio, isAudioEnabled } from './engine'
+import { CHARACTER_LIST } from './engine'
 import { createEyesBehavior, createBlinkBehavior, createClickBehavior } from './engine/behaviors'
 import ExportModal from './ExportModal'
 import StandalonePet from './StandalonePet'
@@ -122,6 +123,8 @@ function App() {
   const [size, setSize] = useState(120)
   const [eyeSpeed, setEyeSpeed] = useState(0.15)
   const [emotion, setEmotion] = useState<Emotion>('neutral')
+  const [character, setCharacterState] = useState<CharacterId>('gloop')
+  const [audioEnabled, setAudioEnabled] = useState(isAudioEnabled())
   const [showExport, setShowExport] = useState(false)
 
   /* ---- Route: standalone pet page ---- */
@@ -175,7 +178,7 @@ function App() {
       pet.unmount()
       petRef.current = null
     }
-  }, [behaviors, color, size, eyeSpeed, emotion])
+  }, [behaviors, color, size, eyeSpeed, emotion, character])
 
   /* ---- Helpers ---- */
 
@@ -207,6 +210,26 @@ function App() {
 
           {/* ── Right panel — Controls ── */}
           <div className="flex-1 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10 p-6 space-y-6 shadow-xl">
+            {/* Header controls */}
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xs font-semibold text-white/40 uppercase tracking-widest">
+                Controles
+              </h2>
+              <button
+                onClick={() => {
+                  const on = toggleAudio()
+                  setAudioEnabled(on)
+                }}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-mono transition-all cursor-pointer ${
+                  audioEnabled
+                    ? 'bg-pink-500/20 text-pink-300 ring-1 ring-pink-400/40'
+                    : 'bg-white/5 text-white/40 hover:text-white/60 ring-1 ring-white/10'
+                }`}
+              >
+                {audioEnabled ? '🔊 Audio ON' : '🔇 Audio OFF'}
+              </button>
+            </div>
+
             {/* Behaviors section */}
             <section>
               <h2 className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-3">
@@ -234,6 +257,32 @@ function App() {
                 >
                   Click 🖱️
                 </Toggle>
+              </div>
+            </section>
+
+            {/* Character section */}
+            <section>
+              <h2 className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-3">
+                Personaje
+              </h2>
+              <div className="grid grid-cols-3 gap-1.5">
+                {CHARACTER_LIST.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setCharacterState(c.id)}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 cursor-pointer ${
+                      character === c.id
+                        ? 'bg-pink-500/20 text-pink-200 ring-1 ring-pink-400/50'
+                        : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70 ring-1 ring-white/5'
+                    }`}
+                  >
+                    <span
+                      className="w-3 h-3 rounded-full shrink-0"
+                      style={{ backgroundColor: c.bodyStops[0] }}
+                    />
+                    <span className="truncate">{c.emoji} {c.label}</span>
+                  </button>
+                ))}
               </div>
             </section>
 
@@ -367,6 +416,7 @@ function App() {
           color={color}
           size={size}
           emotion={emotion}
+          character={character}
           onClose={() => setShowExport(false)}
         />
       )}

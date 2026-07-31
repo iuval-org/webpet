@@ -9,6 +9,7 @@ interface ExportModalProps {
   color: string // hex with #, e.g. "#ff6b6b"
   size: number
   emotion?: string // current emotion
+  character?: string // current character
   onClose: () => void
 }
 
@@ -32,14 +33,14 @@ function serializeBehaviors(names: string[]): string {
   return names.map((n) => map[n] ?? n).join(',')
 }
 
-function buildUrl(behaviors: string[], color: string, size: number, emotion?: string): string {
+function buildUrl(behaviors: string[], color: string, size: number, emotion?: string, character?: string): string {
   const b = serializeBehaviors(behaviors)
   const c = color.replace('#', '')
-  let url = `${BASE_URL}/p/${b}/${c}/${size}`
-  if (emotion && emotion !== 'neutral') {
-    url += `?emotion=${emotion}`
-  }
-  return url
+  const params = new URLSearchParams()
+  if (emotion && emotion !== 'neutral') params.set('emotion', emotion)
+  if (character && character !== 'gloop') params.set('character', character)
+  const qs = params.toString()
+  return `${BASE_URL}/p/${b}/${c}/${size}${qs ? '?' + qs : ''}`
 }
 
 function buildDevUrl(
@@ -47,13 +48,13 @@ function buildDevUrl(
   color: string,
   size: number,
   emotion?: string,
+  character?: string,
 ): string {
   const b = serializeBehaviors(behaviors)
   const c = color.replace('#', '')
   let url = `${BASE_URL}/?pet=${b}&color=${c}&size=${size}`
-  if (emotion && emotion !== 'neutral') {
-    url += `&emotion=${emotion}`
-  }
+  if (emotion && emotion !== 'neutral') url += `&emotion=${emotion}`
+  if (character && character !== 'gloop') url += `&character=${character}`
   return url
 }
 
@@ -83,14 +84,15 @@ export default function ExportModal({
   color,
   size,
   emotion,
+  character,
   onClose,
 }: ExportModalProps) {
   const [copied, setCopied] = useState(false)
 
   const isDev = import.meta.env.DEV
   const fullUrl = isDev
-    ? buildDevUrl(behaviors, color, size, emotion)
-    : buildUrl(behaviors, color, size, emotion)
+    ? buildDevUrl(behaviors, color, size, emotion, character)
+    : buildUrl(behaviors, color, size, emotion, character)
 
   const scriptTag = `<script src="${fullUrl}" async></script>`
   const estimatedSize = estimateBundleSize(behaviors)
@@ -192,6 +194,11 @@ export default function ExportModal({
             {emotion && (
               <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-1 text-slate-600 dark:text-slate-300">
                 😌 {emotion}
+              </span>
+            )}
+            {character && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-1 text-slate-600 dark:text-slate-300">
+                👾 {character}
               </span>
             )}
             {behaviors.map((b) => (
