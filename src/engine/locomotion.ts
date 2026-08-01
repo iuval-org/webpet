@@ -123,6 +123,13 @@ export function createLocomotionBehavior(
   let _squashX = 1
   let _squashY = 1
 
+  /* ---- Energy curve: square the slider so low values are calmer ---- */
+  function effectiveEnergy(): number {
+    // slider 0→0, 1→0.01, 3→0.09, 5→0.25, 7→0.49, 10→1.0
+    // Then scale back to 0-10 range so existing multipliers work
+    return (_energy / 10) ** 2 * 10
+  }
+
   /* ---- Public API ---- */
 
   function setMode(m: LocomotionMode): void {
@@ -172,18 +179,20 @@ export function createLocomotionBehavior(
 
     playTrick()
 
+    const e = effectiveEnergy()
+
     if (trick === 'highjump') {
-      _vy = -14 - _energy * 1.1
-      _vx = _walkDir * (1.8 + _energy * 0.5)
+      _vy = -14 - e * 1.1
+      _vx = _walkDir * (1.8 + e * 0.5)
     } else if (trick === 'flip') {
-      _vy = -12 - _energy * 0.9
-      _vx = _walkDir * (2.8 + _energy * 0.6)
+      _vy = -12 - e * 0.9
+      _vx = _walkDir * (2.8 + e * 0.6)
     } else if (trick === 'spin') {
-      _vy = -10 - _energy * 0.8
-      _vx = _walkDir * (2.2 + _energy * 0.5)
+      _vy = -10 - e * 0.8
+      _vx = _walkDir * (2.2 + e * 0.5)
     } else { // hop
-      _vy = -8.5 - _energy * 0.7
-      _vx = _walkDir * (2.0 + _energy * 0.4)
+      _vy = -8.5 - e * 0.7
+      _vx = _walkDir * (2.0 + e * 0.4)
     }
   }
 
@@ -232,6 +241,8 @@ export function createLocomotionBehavior(
   /* ---- Internal fly update ---- */
 
   function _updateFly(now: number, _dt: number): void {
+    const e = effectiveEnergy()
+
     if (_energy === 0) {
       /* Calm — drift to center */
       _posX += (0 - _posX) * 0.08
@@ -250,36 +261,36 @@ export function createLocomotionBehavior(
       _targetY = (Math.random() - 0.5) * maxOffset * 1.5
     }
 
-    const speed = 0.5 + _energy * 0.4
+    const speed = 0.5 + e * 0.4
     _posX += Math.sign(_targetX - _posX) * Math.min(Math.abs(_targetX - _posX), speed)
     _posY += Math.sign(_targetY - _posY) * Math.min(Math.abs(_targetY - _posY), speed * 0.7)
 
     /* Idle bob */
-    _posY += Math.sin(now * 0.003) * (2 + _energy * 0.5)
+    _posY += Math.sin(now * 0.003) * (2 + e * 0.5)
 
     /* Auto-tricks */
-    const cooldown = Math.max(700, 3200 - _energy * 240)
-    if (!_trickState && (now - _lastTrickTime > cooldown) && Math.random() < 0.25 + _energy * 0.04) {
+    const cooldown = Math.max(700, 3200 - e * 240)
+    if (!_trickState && (now - _lastTrickTime > cooldown) && Math.random() < 0.25 + e * 0.04) {
       triggerJump()
     }
 
     /* Trick animation */
     if (_trickState) {
-      const speedMult = 0.035 + _energy * 0.003
+      const speedMult = 0.035 + e * 0.003
       _trickProgress += speedMult
       const p = Math.min(1, _trickProgress)
 
       if (_trickState === 'hop') {
-        _posY = -Math.sin(p * Math.PI) * (45 + _energy * 6)
+        _posY = -Math.sin(p * Math.PI) * (45 + e * 6)
         _rotation = Math.sin(p * Math.PI * 2) * 10
       } else if (_trickState === 'flip') {
-        _posY = -Math.sin(p * Math.PI) * (75 + _energy * 8)
+        _posY = -Math.sin(p * Math.PI) * (75 + e * 8)
         _rotation = p * 360
       } else if (_trickState === 'spin') {
-        _posY = -Math.sin(p * Math.PI) * (35 + _energy * 4)
+        _posY = -Math.sin(p * Math.PI) * (35 + e * 4)
         _rotation = p * 720
       } else if (_trickState === 'highjump') {
-        _posY = -Math.sin(p * Math.PI) * (120 + _energy * 10)
+        _posY = -Math.sin(p * Math.PI) * (120 + e * 10)
         _rotation = Math.sin(p * Math.PI * 2) * 25
         _squashX = 1 - Math.sin(p * Math.PI) * 0.25
         _squashY = 1 + Math.sin(p * Math.PI) * 0.35
@@ -304,6 +315,7 @@ export function createLocomotionBehavior(
   /* ---- Internal walk update ---- */
 
   function _updateWalk(now: number, _dt: number): void {
+    const e = effectiveEnergy()
     if (!_isGrounded) {
       /* Airborne */
       _vy += 0.55
@@ -340,9 +352,9 @@ export function createLocomotionBehavior(
 
       /* Walk on ground */
       if (_energy > 0 && _tricks.hop) {
-        const speed = 0.8 + _energy * 0.5
+        const speed = 0.8 + e * 0.5
         _posX += _walkDir * speed
-        _walkCycle += 0.18 + _energy * 0.03
+        _walkCycle += 0.18 + e * 0.03
         _rotation = Math.sin(_walkCycle) * 10
         _squashY = 1 + Math.abs(Math.sin(_walkCycle)) * 0.12
 
@@ -355,8 +367,8 @@ export function createLocomotionBehavior(
       }
 
       /* Auto-jump */
-      const cooldown = Math.max(800, 3500 - _energy * 250)
-      if (_energy > 0 && !_trickState && (now - _lastTrickTime > cooldown) && Math.random() < 0.2 + _energy * 0.04) {
+      const cooldown = Math.max(800, 3500 - e * 250)
+      if (_energy > 0 && !_trickState && (now - _lastTrickTime > cooldown) && Math.random() < 0.2 + e * 0.04) {
         triggerJump()
       }
     }
