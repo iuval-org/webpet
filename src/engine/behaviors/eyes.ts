@@ -51,8 +51,8 @@ interface EyeState {
 function computeEyeLayout(size: number): [EyeLayout, EyeLayout] {
   const radius = Math.max(size * 0.15, 4)
   return [
-    { cx: size * 0.35, cy: size * 0.42, radius },
-    { cx: size * 0.65, cy: size * 0.42, radius },
+    { cx: size * 0.3375, cy: size * 0.45, radius },    // 135/400 of viewBox
+    { cx: size * 0.6625, cy: size * 0.45, radius },    // 265/400
   ]
 }
 

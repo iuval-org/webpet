@@ -121,7 +121,7 @@ function App() {
 
   const [behaviors, setBehaviors] = useState<BehaviorState>(ALL_ACTIVE)
   const [color, setColor] = useState('#ff6b6b')
-  const [size, setSize] = useState(120)
+  const [size, setSize] = useState(256)
   const [eyeSpeed, setEyeSpeed] = useState(0.15)
   const [emotion, setEmotion] = useState<Emotion>('neutral')
   const [character, setCharacterState] = useState<CharacterId>('gloop')
@@ -415,8 +415,8 @@ function App() {
                   </label>
                   <input
                     type="range"
-                    min={32}
-                    max={200}
+                    min={64}
+                    max={300}
                     value={size}
                     onChange={(e) => setSize(Number(e.target.value))}
                     className="w-full h-1.5 rounded-full appearance-none cursor-pointer

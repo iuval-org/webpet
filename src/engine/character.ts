@@ -126,6 +126,7 @@ export function getCharacterDef(id?: CharacterId): CharacterDef {
 
 /**
  * Draw the character body (blob shape + gradient) on the canvas.
+ * Uses the demo's bezier curve blob for a smooth organic shape.
  */
 export function drawBody(
   ctx: CanvasRenderingContext2D,
@@ -135,25 +136,57 @@ export function drawBody(
   const c = character ?? getCharacterDef()
   const cx = size / 2
   const cy = size / 2
-  const radius = size * 0.42
+
+  /* Bezier blob matching the demo SVG:
+     ViewBox 400×400 → scale factor = size / 400
+     Path: M 200,60 C 290,60 350,110 350,210 C 350,310 290,340 200,340 C 110,340 50,310 50,210 C 50,110 110,60 200,60 Z */
+  const s = size / 400
+
+  ctx.beginPath()
+
+  // Top-center → right
+  ctx.moveTo(cx, cy - 140 * s) // (200, 60)
+  ctx.bezierCurveTo(
+    cx + 90 * s, cy - 140 * s,  // (290, 60)
+    cx + 150 * s, cy - 90 * s,  // (350, 110)
+    cx + 150 * s, cy + 10 * s,  // (350, 210)
+  )
+  // Right → bottom-center
+  ctx.bezierCurveTo(
+    cx + 150 * s, cy + 110 * s, // (350, 310)
+    cx + 90 * s, cy + 140 * s,  // (290, 340)
+    cx, cy + 140 * s,           // (200, 340)
+  )
+  // Bottom-center → left
+  ctx.bezierCurveTo(
+    cx - 90 * s, cy + 140 * s,  // (110, 340)
+    cx - 150 * s, cy + 110 * s, // (50, 310)
+    cx - 150 * s, cy + 10 * s,  // (50, 210)
+  )
+  // Left → top-center
+  ctx.bezierCurveTo(
+    cx - 150 * s, cy - 90 * s,  // (50, 110)
+    cx - 90 * s, cy - 140 * s,  // (110, 60)
+    cx, cy - 140 * s,           // (200, 60)
+  )
+
+  ctx.closePath()
 
   /* Radial gradient */
   const grad = ctx.createRadialGradient(
-    cx - radius * 0.15, cy - radius * 0.2, 0,
-    cx, cy, radius,
+    cx - 40 * s, cy - 50 * s, 0,
+    cx, cy, 150 * s,
   )
   grad.addColorStop(0, c.bodyStops[0])
   grad.addColorStop(0.6, c.bodyStops[1])
   grad.addColorStop(1, c.bodyStops[2])
 
-  ctx.beginPath()
-  ctx.ellipse(cx, cy, radius, radius * 1.05, 0, 0, Math.PI * 2)
   ctx.fillStyle = grad
   ctx.fill()
 
-  /* Outline */
-  ctx.strokeStyle = 'rgba(0,0,0,0.3)'
-  ctx.lineWidth = Math.max(size * 0.02, 2)
+  /* Outline — dark stroke like the demo */
+  ctx.strokeStyle = '#2e1065'
+  ctx.lineWidth = Math.max(size * 0.02, 3)
   ctx.stroke()
 }
 
