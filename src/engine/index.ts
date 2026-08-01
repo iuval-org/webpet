@@ -25,6 +25,11 @@ export type { Emotion, EmotionDrawState, EmotionConfig, EmotionAPI } from './emo
 export { createEmotionTriggers } from './emotionTriggers.ts'
 export type { EmotionTriggersAPI, BuiltinTrigger, TriggerName, EmotionTriggerConfig } from './emotionTriggers.ts'
 
+export { createParticleBehavior } from './particles.ts'
+export type { ParticleType, ParticleBehavior, ParticleAPI, ParticleEmitConfig } from './particles.ts'
+
+export { createParticleTriggers } from './particleTriggers.ts'
+
 export { CHARACTERS, CHARACTER_LIST } from './character.ts'
 export type { CharacterId, CharacterDef, AccessoryType } from './character.ts'
 export { setCharacter, getCharacter, getCharacterDef } from './character.ts'

@@ -8,6 +8,9 @@ import { createEmotionBehavior } from './emotion.ts'
 import type { Emotion, EmotionAPI } from './emotion.ts'
 import { setCharacter as _setGlobalCharacter } from './character.ts'
 import type { CharacterId } from './character.ts'
+import { createParticleBehavior } from './particles.ts'
+import type { ParticleBehavior, ParticleAPI, ParticleType, ParticleEmitConfig } from './particles.ts'
+import { createParticleTriggers } from './particleTriggers.ts'
 
 /** User-provided color value (hex, rgb, hsl, or named). */
 type Color = string
@@ -32,6 +35,8 @@ export interface PetConfig {
   readonly emotionSpeed?: number
   /** Character preset (default: 'gloop'). */
   readonly character?: CharacterId
+  /** Enable particle effects (default: true). Requires emotions enabled. */
+  readonly particles?: boolean
 }
 
 /** A live pet instance with its own state, behaviors, and renderer. */
@@ -60,6 +65,10 @@ export interface PetInstance {
   onEmotionChange?(cb: (emotion: Emotion) => void): () => void
   /** Access the raw EmotionAPI for advanced use. */
   readonly emotion?: EmotionAPI
+  /** Emit particles at the pet's center. Returns false if particles are disabled. */
+  emitParticles?(type: ParticleType, count: number, config?: Partial<ParticleEmitConfig>): boolean
+  /** Access the raw ParticleAPI for advanced use. */
+  readonly particles?: ParticleAPI
 }
 
 let _nextId = 0
@@ -93,8 +102,21 @@ export function createPet(config: PetConfig): PetInstance {
       })
     : null
 
+  const enableParticles = config.particles ?? true
+
+  let particleBehavior: ParticleBehavior | null = null
+
   if (emotionBehavior) {
     behaviorManager.register(emotionBehavior)
+  }
+
+  /* ---- Particle system (registers AFTER emotion so it draws on top) ---- */
+  if (enableEmotions && enableParticles && emotionBehavior) {
+    particleBehavior = createParticleBehavior()
+    behaviorManager.register(particleBehavior)
+
+    const triggers = createParticleTriggers(emotionBehavior, particleBehavior, size)
+    behaviorManager.register(triggers)
   }
 
   for (const b of config.behaviors ?? []) {
@@ -144,6 +166,15 @@ export function createPet(config: PetConfig): PetInstance {
     instance.getEmotion = () => emotionBehavior.getEmotion()
     instance.onEmotionChange = (cb) => emotionBehavior.onEmotionChange(cb)
     ;(instance as unknown as Record<string, unknown>).emotion = emotionBehavior
+  }
+
+  /* ---- Particle methods (lifted from behavior) ---- */
+  if (particleBehavior) {
+    instance.emitParticles = (type, count, config) => {
+      particleBehavior.emit(size / 2, size / 2, type, count, config)
+      return true
+    }
+    ;(instance as unknown as Record<string, unknown>).particles = particleBehavior
   }
 
   return instance
