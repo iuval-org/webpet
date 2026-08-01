@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import type { CharacterId, Emotion, LocomotionMode, PetInstance } from './engine'
+import type { BodyType, CharacterId, Emotion, EyeType, ArmType, Headgear, LocomotionMode, PetInstance } from './engine'
 import { createPet, toggleAudio, isAudioEnabled } from './engine'
-import { CHARACTER_LIST } from './engine'
+import { CHARACTER_LIST, BODY_OPTIONS, EYE_OPTIONS, ARM_OPTIONS, HEADGEAR_OPTIONS } from './engine'
 import { createLocomotionBehavior } from './engine'
 import { createEyesBehavior, createBlinkBehavior, createClickBehavior } from './engine/behaviors'
 import ExportModal from './ExportModal'
 import StandalonePet from './StandalonePet'
+import { setBodyType as _setBodyType, setEyeType as _setEyeType, setArmType as _setArmType, setHeadgearType as _setHeadgearType } from './engine/character.ts'
 
 /* -------------------------------------------------------- */
 /*  Constants                                               */
@@ -128,6 +129,12 @@ function App() {
   const [audioEnabled, setAudioEnabled] = useState(isAudioEnabled())
   const [showExport, setShowExport] = useState(false)
 
+  /* ---- Appearance state ---- */
+  const [bodyType, setBodyType] = useState<BodyType>('round')
+  const [eyeType, setEyeType] = useState<EyeType>('round')
+  const [armType, setArmType] = useState<ArmType>('stubby')
+  const [headgearType, setHeadgearType] = useState<Headgear>('none')
+
   /* ---- Locomotion state ---- */
   const [mode, setMode] = useState<LocomotionMode>('fly')
   const [energy, setEnergy] = useState(3)
@@ -187,11 +194,17 @@ function App() {
 
     petRef.current = pet
 
+    /* Set appearance on the character system */
+    _setBodyType(bodyType)
+    _setEyeType(eyeType)
+    _setArmType(armType)
+    _setHeadgearType(headgearType)
+
     return () => {
       pet.unmount()
       petRef.current = null
     }
-  }, [behaviors, color, size, eyeSpeed, emotion, character, mode, energy])
+  }, [behaviors, color, size, eyeSpeed, emotion, character, mode, energy, bodyType, eyeType, armType, headgearType])
 
   /* ---- Helpers ---- */
 
@@ -384,6 +397,82 @@ function App() {
             {/* Appearance section */}
             <section>
               <h2 className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-3">
+                Cuerpo
+              </h2>
+              <div className="flex flex-wrap gap-1.5">
+                {BODY_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setBodyType(opt.id)}
+                    className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                      bodyType === opt.id
+                        ? 'bg-pink-500/20 text-pink-200 ring-1 ring-pink-400/50'
+                        : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70 ring-1 ring-white/5'
+                    }`}
+                  >
+                    {opt.emoji} {opt.label}
+                  </button>
+                ))}
+              </div>
+              <h2 className="text-xs font-semibold text-white/40 uppercase tracking-widest mt-3 mb-2">
+                Ojos
+              </h2>
+              <div className="flex flex-wrap gap-1.5">
+                {EYE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setEyeType(opt.id)}
+                    className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                      eyeType === opt.id
+                        ? 'bg-pink-500/20 text-pink-200 ring-1 ring-pink-400/50'
+                        : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70 ring-1 ring-white/5'
+                    }`}
+                  >
+                    {opt.emoji} {opt.label}
+                  </button>
+                ))}
+              </div>
+              <h2 className="text-xs font-semibold text-white/40 uppercase tracking-widest mt-3 mb-2">
+                Brazos
+              </h2>
+              <div className="flex flex-wrap gap-1.5">
+                {ARM_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setArmType(opt.id)}
+                    className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                      armType === opt.id
+                        ? 'bg-pink-500/20 text-pink-200 ring-1 ring-pink-400/50'
+                        : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70 ring-1 ring-white/5'
+                    }`}
+                  >
+                    {opt.emoji} {opt.label}
+                  </button>
+                ))}
+              </div>
+              <h2 className="text-xs font-semibold text-white/40 uppercase tracking-widest mt-3 mb-2">
+                Accesorio
+              </h2>
+              <div className="flex flex-wrap gap-1.5">
+                {HEADGEAR_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setHeadgearType(opt.id)}
+                    className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                      headgearType === opt.id
+                        ? 'bg-pink-500/20 text-pink-200 ring-1 ring-pink-400/50'
+                        : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70 ring-1 ring-white/5'
+                    }`}
+                  >
+                    {opt.emoji} {opt.label}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            {/* Original Apariencia section */}
+            <section>
+              <h2 className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-3">
                 Apariencia
               </h2>
               <div className="space-y-5">
@@ -495,6 +584,10 @@ function App() {
           size={size}
           emotion={emotion}
           character={character}
+          bodyType={bodyType}
+          eyeType={eyeType}
+          armType={armType}
+          headgearType={headgearType}
           onClose={() => setShowExport(false)}
         />
       )}

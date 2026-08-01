@@ -17,7 +17,6 @@ import type { Behavior } from './behavior.ts'
 import type { Renderer } from './renderer.ts'
 import type { InputState } from './input.ts'
 import {
-  drawBody,
   drawAccessories,
   drawEyebrows,
   drawEyelids,
@@ -26,9 +25,11 @@ import {
   setCharacter,
   getCharacter,
   getCharacterRenderState,
+  getAppearance,
   type CharacterId,
 } from './character.ts'
 import { playBlink, playPoke, playAngry, playSad } from './audio.ts'
+import { drawBody as drawAppearanceBody, drawArms, drawHeadgear } from './appearance.ts'
 
 /* -------------------------------------------------------- */
 /*  Types                                                  */
@@ -214,8 +215,15 @@ export function createEmotionBehavior(config?: Partial<EmotionConfig>): Behavior
       ctx.translate(-size / 2, -size / 2)
 
       /* ---- Draw character body ---- */
-      drawBody(ctx, size, charDef)
+      const ap = getAppearance()
+      drawAppearanceBody(ctx, size, ap.body, charDef)
       drawAccessories(ctx, size, charDef)
+
+      /* ---- Draw arms ---- */
+      drawArms(ctx, size, ap.arms, charDef, time)
+
+      /* ---- Draw headgear ---- */
+      drawHeadgear(ctx, size, ap.headgear, charDef, time)
 
       /* ---- Smooth transition toward target ---- */
 

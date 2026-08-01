@@ -426,3 +426,29 @@ export function setCharacterTransform(ox: number, oy: number, rot: number): void
 export function updateCharacterTime(delta: number): void {
   _state.time += delta / 1000
 }
+
+/* -------------------------------------------------------- */
+/*  Appearance state                                        */
+/* -------------------------------------------------------- */
+
+import type { BodyType, EyeType, ArmType, Headgear, Appearance } from './appearance.ts'
+
+let _appearance: { body: BodyType; eyes: EyeType; arms: ArmType; headgear: Headgear } = {
+  body: 'round',
+  eyes: 'round',
+  arms: 'stubby',
+  headgear: 'none',
+}
+
+export function setAppearance(a: Partial<Appearance>): void {
+  if (a.body !== undefined) _appearance.body = a.body
+  if (a.eyes !== undefined) _appearance.eyes = a.eyes
+  if (a.arms !== undefined) _appearance.arms = a.arms
+  if (a.headgear !== undefined) _appearance.headgear = a.headgear
+}
+
+export function setBodyType(t: BodyType): void { _appearance.body = t }
+export function setEyeType(t: EyeType): void { _appearance.eyes = t }
+export function setArmType(t: ArmType): void { _appearance.arms = t }
+export function setHeadgearType(t: Headgear): void { _appearance.headgear = t }
+export function getAppearance(): Appearance { return { ..._appearance } }

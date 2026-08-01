@@ -10,6 +10,10 @@ interface ExportModalProps {
   size: number
   emotion?: string // current emotion
   character?: string // current character
+  bodyType?: string
+  eyeType?: string
+  armType?: string
+  headgearType?: string
   onClose: () => void
 }
 
@@ -49,12 +53,20 @@ function buildDevUrl(
   size: number,
   emotion?: string,
   character?: string,
+  bodyType?: string,
+  eyeType?: string,
+  armType?: string,
+  headgearType?: string,
 ): string {
   const b = serializeBehaviors(behaviors)
   const c = color.replace('#', '')
   let url = `${BASE_URL}/?pet=${b}&color=${c}&size=${size}`
   if (emotion && emotion !== 'neutral') url += `&emotion=${emotion}`
   if (character && character !== 'gloop') url += `&character=${character}`
+  if (bodyType && bodyType !== 'round') url += `&body=${bodyType}`
+  if (eyeType && eyeType !== 'round') url += `&eyes=${eyeType}`
+  if (armType && armType !== 'stubby') url += `&arms=${armType}`
+  if (headgearType && headgearType !== 'none') url += `&headgear=${headgearType}`
   return url
 }
 
@@ -85,13 +97,17 @@ export default function ExportModal({
   size,
   emotion,
   character,
+  bodyType,
+  eyeType,
+  armType,
+  headgearType,
   onClose,
 }: ExportModalProps) {
   const [copied, setCopied] = useState(false)
 
   const isDev = import.meta.env.DEV
   const fullUrl = isDev
-    ? buildDevUrl(behaviors, color, size, emotion, character)
+    ? buildDevUrl(behaviors, color, size, emotion, character, bodyType, eyeType, armType, headgearType)
     : buildUrl(behaviors, color, size, emotion, character)
 
   const scriptTag = `<script src="${fullUrl}" async></script>`
