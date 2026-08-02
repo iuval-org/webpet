@@ -244,17 +244,23 @@ export function drawAccessories(
 /**
  * Draw eyebrows based on emotion state.
  * eyeAngle: positive = arched up (happy), negative = furrowed (angry)
+ * asymmetry: 0 = mirrored brows; >0 raises the left brow and lowers the right,
+ *            <0 does the opposite (skeptical = one up, one down).
  */
 export function drawEyebrows(
   ctx: CanvasRenderingContext2D,
   size: number,
   eyeAngle: number,
   color: string,
+  asymmetry = 0,
 ): void {
   const cx = size / 2
   const browW = size * 0.22
   const browY = size * 0.28
   const strokeW = Math.max(size * 0.035, 3)
+
+  const leftAngle = eyeAngle + asymmetry / 2
+  const rightAngle = eyeAngle - asymmetry / 2
 
   ctx.save()
   ctx.strokeStyle = color
@@ -265,11 +271,11 @@ export function drawEyebrows(
   const leftStartX = cx - browW - size * 0.04
   const leftEndX = cx - size * 0.03
   const leftMidX = (leftStartX + leftEndX) / 2
-  const leftMidY = browY - eyeAngle * size * 0.08
+  const leftMidY = browY - leftAngle * size * 0.08
 
   ctx.beginPath()
   ctx.moveTo(leftStartX, browY)
-  ctx.quadraticCurveTo(leftMidX, leftMidY, leftEndX, browY - eyeAngle * size * 0.04)
+  ctx.quadraticCurveTo(leftMidX, leftMidY, leftEndX, browY - leftAngle * size * 0.04)
   ctx.stroke()
 
   /* Right eyebrow */
@@ -278,10 +284,10 @@ export function drawEyebrows(
 
   // Mirror the angle (left brow up = right brow up for most emotions)
   const rightMidX = (rightStartX + rightEndX) / 2
-  const rightMidY = browY - eyeAngle * size * 0.08
+  const rightMidY = browY - rightAngle * size * 0.08
 
   ctx.beginPath()
-  ctx.moveTo(rightStartX, browY - eyeAngle * size * 0.04)
+  ctx.moveTo(rightStartX, browY - rightAngle * size * 0.04)
   ctx.quadraticCurveTo(rightMidX, rightMidY, rightEndX, browY)
   ctx.stroke()
 

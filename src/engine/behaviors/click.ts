@@ -1,6 +1,7 @@
 import type { Behavior } from '../behavior.ts'
 import type { InputState } from '../input.ts'
 import type { Renderer } from '../renderer.ts'
+import { setCharacterSquash } from '../character.ts'
 
 /**
  * Configuration for the click-reaction behavior.
@@ -255,6 +256,10 @@ export function createClickBehavior(config?: Partial<ClickConfig>): Behavior {
         // New click — pick reaction and (re)start
         const kind = pickReaction(cfg)
         triggerReaction(kind)
+
+        // Momentary squash & stretch on the character (emotion behavior
+        // eases it back to rest on subsequent frames)
+        setCharacterSquash(1.15, 0.85)
       }
       wasClicking = input.isClicking
 

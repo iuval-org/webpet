@@ -20,7 +20,7 @@ export { Renderer } from './renderer.ts'
 export type { RenderMode, RendererConfig } from './renderer.ts'
 
 export { createEmotionBehavior } from './emotion.ts'
-export type { Emotion, EmotionDrawState, EmotionConfig, EmotionAPI } from './emotion.ts'
+export type { Emotion, EmotionDrawState, EmotionConfig, EmotionAPI, PupilMode } from './emotion.ts'
 
 export { createEmotionTriggers } from './emotionTriggers.ts'
 export type { EmotionTriggersAPI, BuiltinTrigger, TriggerName, EmotionTriggerConfig } from './emotionTriggers.ts'

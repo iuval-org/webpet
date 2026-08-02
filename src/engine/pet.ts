@@ -5,7 +5,7 @@ import type { Renderer as RendererType } from './renderer.ts'
 import { core } from './core.ts'
 import { input } from './input.ts'
 import { createEmotionBehavior } from './emotion.ts'
-import type { Emotion, EmotionAPI } from './emotion.ts'
+import type { Emotion, EmotionAPI, PupilMode } from './emotion.ts'
 import { setCharacter as _setGlobalCharacter } from './character.ts'
 import type { CharacterId } from './character.ts'
 import { createParticleBehavior } from './particles.ts'
@@ -63,6 +63,10 @@ export interface PetInstance {
   getEmotion?(): Emotion
   /** Register an emotion change listener. Returns an unsubscribe function. */
   onEmotionChange?(cb: (emotion: Emotion) => void): () => void
+  /** Set the pupil visual mode (only available when emotions are enabled). */
+  setPupilMode?(mode: PupilMode): void
+  /** Get the current pupil visual mode (only available when emotions are enabled). */
+  getPupilMode?(): PupilMode
   /** Access the raw EmotionAPI for advanced use. */
   readonly emotion?: EmotionAPI
   /** Emit particles at the pet's center. Returns false if particles are disabled. */
@@ -165,6 +169,8 @@ export function createPet(config: PetConfig): PetInstance {
     instance.setEmotion = (e: Emotion) => emotionBehavior.setEmotion(e)
     instance.getEmotion = () => emotionBehavior.getEmotion()
     instance.onEmotionChange = (cb) => emotionBehavior.onEmotionChange(cb)
+    instance.setPupilMode = (m: PupilMode) => emotionBehavior.setPupilMode(m)
+    instance.getPupilMode = () => emotionBehavior.getPupilMode()
     ;(instance as unknown as Record<string, unknown>).emotion = emotionBehavior
   }
 

@@ -26,6 +26,11 @@ const EMOTIONS: EmotionOption[] = [
   { id: 'surprised', label: 'Sorprendido', emoji: '😮' },
   { id: 'sleepy',    label: 'Soñoliento', emoji: '😴' },
   { id: 'scared',    label: 'Asustado',  emoji: '😨' },
+  { id: 'love',      label: 'Amor',     emoji: '😍' },
+  { id: 'cool',      label: 'Cool',     emoji: '😎' },
+  { id: 'dizzy',     label: 'Mareado',  emoji: '😵' },
+  { id: 'silly',     label: 'Tonto',    emoji: '🤪' },
+  { id: 'skeptical', label: 'Escéptico', emoji: '🤨' },
 ]
 
 /* -------------------------------------------------------- */
@@ -204,7 +209,13 @@ function App() {
       pet.unmount()
       petRef.current = null
     }
-  }, [behaviors, color, size, eyeSpeed, emotion, character, mode, energy, bodyType, eyeType, armType, headgearType])
+  }, [behaviors, color, size, eyeSpeed, character, mode, energy, bodyType, eyeType, armType, headgearType])
+
+  /* ---- Change emotion live (no remount → squash & stretch is visible) ---- */
+
+  useEffect(() => {
+    petRef.current?.setEmotion?.(emotion)
+  }, [emotion])
 
   /* ---- Helpers ---- */
 

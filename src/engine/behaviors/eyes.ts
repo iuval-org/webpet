@@ -1,6 +1,8 @@
 import type { Behavior } from '../behavior.ts'
 import type { InputState } from '../input.ts'
 import type { Renderer } from '../renderer.ts'
+import { getPupilMode, getEmotion } from '../emotion.ts'
+import type { PupilMode } from '../emotion.ts'
 
 /**
  * Configuration for the eyes-follow-cursor behavior.
@@ -58,12 +60,15 @@ function computeEyeLayout(size: number): [EyeLayout, EyeLayout] {
 
 /**
  * Draw a single eye on the canvas context.
+ * The pupil shape varies by pupil mode: circle (normal), heart (love),
+ * or a 4-point sparkle star (dizzy).
  */
 function drawEye(
   ctx: CanvasRenderingContext2D,
   eye: EyeLayout,
   state: EyeState,
   config: EyesConfig,
+  pupilMode: PupilMode,
 ): void {
   const { cx, cy, radius } = eye
   const pupilR = Math.max(radius * config.pupilSize, 1.5)
@@ -78,6 +83,9 @@ function drawEye(
     oy = (state.offsetY / disp) * maxDisp
   }
 
+  const px = cx + ox
+  const py = cy + oy
+
   /* 1. Sclera (white of the eye) */
   ctx.beginPath()
   ctx.arc(cx, cy, radius, 0, Math.PI * 2)
@@ -89,24 +97,123 @@ function drawEye(
 
   /* 2. Iris (colored circle) */
   ctx.beginPath()
-  ctx.arc(cx + ox, cy + oy, radius * 0.85, 0, Math.PI * 2)
+  ctx.arc(px, py, radius * 0.85, 0, Math.PI * 2)
   ctx.fillStyle = config.irisColor
   ctx.fill()
 
-  /* 3. Pupil (dark circle inside the iris) */
-  ctx.beginPath()
-  ctx.arc(cx + ox, cy + oy, pupilR, 0, Math.PI * 2)
+  /* 3. Pupil (shape depends on pupil mode) */
   ctx.fillStyle = '#111111'
-  ctx.fill()
-
-  /* 4. Highlight (small white glint on the upper-left of the pupil) */
-  const highlightR = pupilR * 0.35
-  if (highlightR >= 1) {
+  if (pupilMode === 'heart') {
+    drawPupilHeart(ctx, px, py, pupilR * 1.25)
+  } else if (pupilMode === 'dizzy') {
+    drawPupilDizzy(ctx, px, py, pupilR)
+  } else {
     ctx.beginPath()
-    ctx.arc(cx + ox - pupilR * 0.25, cy + oy - pupilR * 0.25, highlightR, 0, Math.PI * 2)
+    ctx.arc(px, py, pupilR, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  /* 4. Highlight (small white glint — only on normal pupils) */
+  const highlightR = pupilR * 0.35
+  if (pupilMode === 'normal' && highlightR >= 1) {
+    ctx.beginPath()
+    ctx.arc(px - pupilR * 0.25, py - pupilR * 0.25, highlightR, 0, Math.PI * 2)
     ctx.fillStyle = 'rgba(255, 255, 255, 0.85)'
     ctx.fill()
   }
+}
+
+/** Draw a small heart-shaped pupil. */
+function drawPupilHeart(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+): void {
+  ctx.beginPath()
+  ctx.moveTo(cx, cy + r * 0.9)
+  ctx.bezierCurveTo(cx - r * 1.15, cy - r * 0.1, cx - r * 0.55, cy - r * 1.05, cx, cy - r * 0.35)
+  ctx.bezierCurveTo(cx + r * 0.55, cy - r * 1.05, cx + r * 1.15, cy - r * 0.1, cx, cy + r * 0.9)
+  ctx.fill()
+}
+
+/** Draw a 4-point sparkle star pupil (dizzy eyes). */
+function drawPupilDizzy(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+): void {
+  const outer = r * 1.3
+  const inner = r * 0.38
+  ctx.beginPath()
+  for (let i = 0; i < 8; i++) {
+    const angle = (i * Math.PI) / 4 - Math.PI / 4 // diagonals first
+    const rad = i % 2 === 0 ? outer : inner
+    const x = cx + Math.cos(angle) * rad
+    const y = cy + Math.sin(angle) * rad
+    if (i === 0) ctx.moveTo(x, y)
+    else ctx.lineTo(x, y)
+  }
+  ctx.closePath()
+  ctx.fill()
+}
+
+/** Trace a rounded-rect path (avoids relying on ctx.roundRect typing). */
+function roundRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+): void {
+  const rr = Math.min(r, w / 2, h / 2)
+  ctx.beginPath()
+  ctx.moveTo(x + rr, y)
+  ctx.arcTo(x + w, y, x + w, y + h, rr)
+  ctx.arcTo(x + w, y + h, x, y + h, rr)
+  ctx.arcTo(x, y + h, x, y, rr)
+  ctx.arcTo(x, y, x + w, y, rr)
+  ctx.closePath()
+}
+
+/** Draw black sunglasses over both eyes (cool emotion). */
+function drawSunglasses(ctx: CanvasRenderingContext2D, size: number): void {
+  const radius = Math.max(size * 0.15, 4)
+  const eyeY = size * 0.45
+  const leftCx = size * 0.3375
+  const rightCx = size * 0.6625
+  const lensW = radius * 1.9
+  const lensH = radius * 1.2
+  const bridgeW = rightCx - leftCx - lensW
+
+  ctx.save()
+  ctx.fillStyle = '#111111'
+
+  /* Lenses */
+  roundRectPath(ctx, leftCx - lensW / 2, eyeY - lensH / 2, lensW, lensH, lensH / 2.5)
+  ctx.fill()
+  roundRectPath(ctx, rightCx - lensW / 2, eyeY - lensH / 2, lensW, lensH, lensH / 2.5)
+  ctx.fill()
+
+  /* Bridge */
+  if (bridgeW > 0) {
+    ctx.fillRect(leftCx + lensW / 2, eyeY - lensH * 0.16, bridgeW, lensH * 0.32)
+  }
+
+  /* Temples */
+  ctx.strokeStyle = '#111111'
+  ctx.lineWidth = Math.max(size * 0.02, 2)
+  ctx.lineCap = 'round'
+  ctx.beginPath()
+  ctx.moveTo(leftCx - lensW / 2, eyeY - lensH * 0.25)
+  ctx.lineTo(leftCx - lensW / 2 - radius * 0.65, eyeY - lensH * 0.5)
+  ctx.moveTo(rightCx + lensW / 2, eyeY - lensH * 0.25)
+  ctx.lineTo(rightCx + lensW / 2 + radius * 0.65, eyeY - lensH * 0.5)
+  ctx.stroke()
+
+  ctx.restore()
 }
 
 /**
@@ -177,8 +284,14 @@ export function createEyesBehavior(config?: Partial<EyesConfig>): Behavior {
 
       /* ---- Render eyes (canvas is cleared by character behavior) ---- */
 
-      drawEye(r.ctx, leftLayout, leftEye, cfg)
-      drawEye(r.ctx, rightLayout, rightEye, cfg)
+      const pupilMode = getPupilMode()
+      drawEye(r.ctx, leftLayout, leftEye, cfg, pupilMode)
+      drawEye(r.ctx, rightLayout, rightEye, cfg, pupilMode)
+
+      /* ---- Sunglasses overlay (cool emotion) ---- */
+      if (getEmotion() === 'cool') {
+        drawSunglasses(r.ctx, size)
+      }
     },
   }
 }

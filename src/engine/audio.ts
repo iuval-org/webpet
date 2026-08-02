@@ -133,3 +133,19 @@ export function playCool(): void {
     } catch { /* noop */ }
   })
 }
+
+/** Dizzy wobble — descending warble. */
+export function playDizzy(): void {
+  playSweep(500, 180, 0.35, 'sine', 0.09)
+  setTimeout(() => {
+    playSweep(320, 140, 0.3, 'sine', 0.07)
+  }, 140)
+}
+
+/** Silly giggle — two quick rising pips. */
+export function playSilly(): void {
+  playSweep(350, 900, 0.09, 'triangle', 0.1)
+  setTimeout(() => {
+    playSweep(450, 1100, 0.09, 'triangle', 0.1)
+  }, 90)
+}

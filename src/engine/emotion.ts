@@ -25,10 +25,11 @@ import {
   setCharacter,
   getCharacter,
   getCharacterRenderState,
+  setCharacterSquash,
   getAppearance,
   type CharacterId,
 } from './character.ts'
-import { playBlink, playPoke, playAngry, playSad } from './audio.ts'
+import { playBlink, playPoke, playAngry, playSad, playLove, playCool, playDizzy, playSilly } from './audio.ts'
 import { drawBody as drawAppearanceBody, drawArms, drawHeadgear } from './appearance.ts'
 
 /* -------------------------------------------------------- */
@@ -43,6 +44,14 @@ export type Emotion =
   | 'surprised'
   | 'sleepy'
   | 'scared'
+  | 'love'
+  | 'cool'
+  | 'dizzy'
+  | 'silly'
+  | 'skeptical'
+
+/** Visual mode for the pupils, driven by the active emotion. */
+export type PupilMode = 'normal' | 'heart' | 'dizzy'
 
 /** Per-frame draw state that behaviours can read. */
 export interface EmotionDrawState {
@@ -76,6 +85,11 @@ const TARGETS: Record<Emotion, EmotionDrawState> = {
   surprised: { mouthCurvature: 0,   mouthOpenness: 0.8, eyeOpenness: 0.9, eyeAngle: 0.1, trembling: 0 },
   sleepy:    { mouthCurvature: 0.1, mouthOpenness: 0,   eyeOpenness: 0.15, eyeAngle: 0,  trembling: 0 },
   scared:    { mouthCurvature: -0.6, mouthOpenness: 0.5, eyeOpenness: 0.85, eyeAngle: -0.3, trembling: 0.5 },
+  love:      { mouthCurvature: 1,   mouthOpenness: 0,   eyeOpenness: 0.5, eyeAngle: 0.2, trembling: 0 },
+  cool:      { mouthCurvature: 0.2, mouthOpenness: 0,   eyeOpenness: 0.3, eyeAngle: -0.1, trembling: 0 },
+  dizzy:     { mouthCurvature: -0.3, mouthOpenness: 0.4, eyeOpenness: 0.6, eyeAngle: 0,  trembling: 0.15 },
+  silly:     { mouthCurvature: 0.3, mouthOpenness: 0.5, eyeOpenness: 0.4, eyeAngle: 0.4, trembling: 0 },
+  skeptical: { mouthCurvature: -0.2, mouthOpenness: 0,   eyeOpenness: 0.3, eyeAngle: 0.6, trembling: 0 },
 }
 
 /* -------------------------------------------------------- */
@@ -96,6 +110,56 @@ const DEFAULT_CONFIG: EmotionConfig = {
   transitionSpeed: 0.04,
 }
 
+/* ---- Pupil mode ---- */
+
+const PUPIL_MODE_BY_EMOTION: Record<Emotion, PupilMode> = {
+  neutral: 'normal',
+  happy: 'normal',
+  sad: 'normal',
+  angry: 'normal',
+  surprised: 'normal',
+  sleepy: 'normal',
+  scared: 'normal',
+  love: 'heart',
+  cool: 'normal',
+  dizzy: 'dizzy',
+  silly: 'normal',
+  skeptical: 'normal',
+}
+
+/**
+ * Module-level snapshot of the active pet's emotion + pupil mode.
+ * The engine is single-pet (character state is already module-level in
+ * character.ts), so the eyes behavior reads these to render pupil shapes
+ * and the sunglasses overlay without coupling behavior instances.
+ */
+let _activeEmotion: Emotion = 'neutral'
+let _activePupilMode: PupilMode = 'normal'
+
+export function getEmotion(): Emotion {
+  return _activeEmotion
+}
+
+export function getPupilMode(): PupilMode {
+  return _activePupilMode
+}
+
+/* ---- Squash & stretch ---- */
+
+/** Duration of the bounce-back squash animation in seconds. */
+const SQUASH_SECONDS = 0.5
+/** Peak squash/stretch amplitude: squashX = 1 + AMP, squashY = 1 - AMP. */
+const SQUASH_AMP = 0.15
+/** Recovery easing for external squashes (e.g. click) — per-frame lerp. */
+const SQUASH_RECOVERY = 0.15
+
+/** Ease-out-back: 0 → 1 with a small overshoot past 1 mid-way. */
+const BACK_C1 = 1.70158
+const BACK_C3 = BACK_C1 + 1
+function easeOutBack(x: number): number {
+  return 1 + BACK_C3 * Math.pow(x - 1, 3) + BACK_C1 * Math.pow(x - 1, 2)
+}
+
 export interface EmotionAPI {
   readonly setEmotion: (emotion: Emotion) => void
   readonly getEmotion: () => Emotion
@@ -103,6 +167,8 @@ export interface EmotionAPI {
   readonly getDrawState: () => EmotionDrawState
   readonly setCharacter: (id: CharacterId) => void
   readonly getCharacter: () => CharacterId
+  readonly setPupilMode: (mode: PupilMode) => void
+  readonly getPupilMode: () => PupilMode
 }
 
 /**
@@ -129,6 +195,8 @@ export function createEmotionBehavior(config?: Partial<EmotionConfig>): Behavior
   let _draw: EmotionDrawState = cloneTarget(cfg.defaultEmotion)
   let _blinkProgress = 0
   let _lastBlinkTime = 0
+  let _pupilMode: PupilMode = PUPIL_MODE_BY_EMOTION[cfg.defaultEmotion]
+  let _squashTime = 0
 
   /* ---- Emotion API ---- */
 
@@ -136,11 +204,29 @@ export function createEmotionBehavior(config?: Partial<EmotionConfig>): Behavior
     if (emotion === _target) return
     _target = emotion
 
-    // Play sound based on emotion
-    if (emotion === 'happy') playPoke()
-    else if (emotion === 'angry') playAngry()
-    else if (emotion === 'sad') playSad()
-    else if (emotion === 'surprised') playBlink()
+    // Sync module-level snapshot for cross-behavior reads (eyes, etc.)
+    _activeEmotion = emotion
+    _activePupilMode = PUPIL_MODE_BY_EMOTION[emotion]
+
+    // Momentary squash & stretch whenever the emotion changes abruptly
+    setCharacterSquash(1 + SQUASH_AMP, 1 - SQUASH_AMP)
+    _squashTime = SQUASH_SECONDS
+
+    // Pupil mode follows the emotion
+    _pupilMode = PUPIL_MODE_BY_EMOTION[emotion]
+
+    // Play sound based on emotion (skeptical stays silent)
+    switch (emotion) {
+      case 'happy': playPoke(); break
+      case 'angry': playAngry(); break
+      case 'sad': playSad(); break
+      case 'surprised': playBlink(); break
+      case 'love': playLove(); break
+      case 'cool': playCool(); break
+      case 'dizzy': playDizzy(); break
+      case 'silly': playSilly(); break
+      default: break
+    }
 
     for (const cb of _listeners) cb(emotion)
   }
@@ -159,6 +245,15 @@ export function createEmotionBehavior(config?: Partial<EmotionConfig>): Behavior
 
   function getDrawState(): EmotionDrawState {
     return _draw
+  }
+
+  function setPupilMode(mode: PupilMode): void {
+    _pupilMode = mode
+    _activePupilMode = mode
+  }
+
+  function getPupilMode(): PupilMode {
+    return _pupilMode
   }
 
   function setCharacterId(id: CharacterId): void {
@@ -180,6 +275,8 @@ export function createEmotionBehavior(config?: Partial<EmotionConfig>): Behavior
     getDrawState,
     setCharacter: setCharacterId,
     getCharacter: getCharacterId,
+    setPupilMode,
+    getPupilMode,
 
     onMount(r: Renderer): void {
       renderer = r
@@ -189,6 +286,8 @@ export function createEmotionBehavior(config?: Partial<EmotionConfig>): Behavior
       _draw = cloneTarget(_current)
       _blinkProgress = 0
       _lastBlinkTime = performance.now()
+      _activeEmotion = cfg.defaultEmotion
+      _activePupilMode = PUPIL_MODE_BY_EMOTION[cfg.defaultEmotion]
     },
 
     onUnmount(): void {
@@ -251,6 +350,23 @@ export function createEmotionBehavior(config?: Partial<EmotionConfig>): Behavior
         }
       }
 
+      /* ---- Squash & stretch recovery (bounce/elastic) ---- */
+
+      if (_squashTime > 0) {
+        // Progress 0 → 1; amplitude starts at 1 and dips negative (overshoot)
+        // before settling at 0, producing a soft bounce back to rest.
+        const progress = 1 - _squashTime / SQUASH_SECONDS
+        _squashTime = Math.max(0, _squashTime - delta / 1000)
+        const amp = 1 - easeOutBack(progress)
+        setCharacterSquash(1 + SQUASH_AMP * amp, 1 - SQUASH_AMP * amp)
+      } else if (renderState.squashX !== 1 || renderState.squashY !== 1) {
+        // External squash (e.g. click behavior) — ease back to rest
+        setCharacterSquash(
+          renderState.squashX + (1 - renderState.squashX) * SQUASH_RECOVERY,
+          renderState.squashY + (1 - renderState.squashY) * SQUASH_RECOVERY,
+        )
+      }
+
       /* ---- Auto-blink ---- */
       const blinkInterval = 3000 + Math.random() * 2000
       if (!_blinkProgress && performance.now() - _lastBlinkTime > blinkInterval) {
@@ -266,7 +382,12 @@ export function createEmotionBehavior(config?: Partial<EmotionConfig>): Behavior
 
       /* ---- Draw eyebrows ---- */
       const browAngle = _draw.eyeAngle
-      drawEyebrows(ctx, size, browAngle, '#222')
+      // Asymmetric brows: skeptical = one raised, one lowered; silly = uneven
+      const browAsymmetry =
+        _current === 'skeptical' ? 1.2
+        : _current === 'silly' ? 0.4
+        : 0
+      drawEyebrows(ctx, size, browAngle, '#222', browAsymmetry)
 
       /* ---- Draw eyelids (blink + sleepy) ---- */
       const blinkAmount = _blinkProgress > 0

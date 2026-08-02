@@ -46,6 +46,14 @@ const TRANSITIONS: TransitionRule[] = [
     to: 'angry',
     burst: { type: 'spark', count: 15, config: { speed: 100, lifetime: 0.8, size: 4, color: '#ff4444' } },
   },
+  {
+    to: 'love',
+    burst: { type: 'heart', count: 18, config: { speed: 110, lifetime: 1.6, size: 5 } },
+  },
+  {
+    to: 'dizzy',
+    burst: { type: 'star', count: 22, config: { speed: 140, lifetime: 1.3, size: 4, spread: Math.PI * 2 } },
+  },
 ]
 
 /* -------------------------------------------------------- */
@@ -74,6 +82,20 @@ const CONTINUOUS: Partial<Record<Emotion, ContinuousRule>> = {
     countMax: 5,
     intervalMs: 800,
     config: { speed: 100, lifetime: 0.6, size: 3, color: '#ff4444' },
+  },
+  love: {
+    type: 'heart',
+    countMin: 3,
+    countMax: 6,
+    intervalMs: 1600,
+    config: { speed: 50, lifetime: 1.4, size: 4 },
+  },
+  dizzy: {
+    type: 'star',
+    countMin: 2,
+    countMax: 4,
+    intervalMs: 900,
+    config: { speed: 40, lifetime: 1.1, size: 3 },
   },
 }
 
