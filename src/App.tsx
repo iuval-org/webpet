@@ -144,12 +144,6 @@ function App() {
   const [mode, setMode] = useState<LocomotionMode>('fly')
   const [energy, setEnergy] = useState(3)
 
-  /* ---- Route: standalone pet page ---- */
-
-  if (isStandaloneRoute()) {
-    return <StandalonePet />
-  }
-
   /* ---- Spawn / re-spawn the pet whenever controls change ---- */
 
   useEffect(() => {
@@ -209,13 +203,19 @@ function App() {
       pet.unmount()
       petRef.current = null
     }
-  }, [behaviors, color, size, eyeSpeed, character, mode, energy, bodyType, eyeType, armType, headgearType])
+  }, [behaviors, color, size, eyeSpeed, character, mode, energy, emotion, bodyType, eyeType, armType, headgearType])
 
   /* ---- Change emotion live (no remount → squash & stretch is visible) ---- */
 
   useEffect(() => {
     petRef.current?.setEmotion?.(emotion)
   }, [emotion])
+
+  /* ---- Route: standalone pet page ---- */
+
+  if (isStandaloneRoute()) {
+    return <StandalonePet />
+  }
 
   /* ---- Helpers ---- */
 
