@@ -1,0 +1,2 @@
+# Cloudflare Pages — Redirect standalone pet routes to the full demo page
+/p/*  /standalone.html  200
